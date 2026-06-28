@@ -1,13 +1,12 @@
 {
-  "name": "Vialo",
-  "short_name": "Vialo",
+  "name": "Pyn",
+  "short_name": "Pyn",
   "description": "Track your peptide and GLP-1 protocols.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f6f8",
-  "theme_color": "#f5f6f8",
+  "theme_color": "#f0dd9c",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/pyn-icon.png", "sizes": "1024x1024", "type": "image/png" }
   ]
 }

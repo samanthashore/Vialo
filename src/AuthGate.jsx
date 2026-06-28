@@ -3,7 +3,7 @@ import { supabase, supabaseConfigured } from "./supabaseClient";
 import { setStorageUser, migrateLocalData } from "./storage.js";
 import App from "./App.jsx";
 
-const ACCENT = "#1c8a74";
+const ACCENT = "#f0dd9c";
 
 const css = `
 .va-root{position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;padding:22px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1c2128;overflow:auto;}
@@ -80,7 +80,7 @@ export default function AuthGate() {
     return (
       <div className="va-root"><style>{css}</style>
         <div className="va-card">
-          <div className="va-brand"><div className="va-logo">V</div><div className="va-name">Vialo</div></div>
+          <div className="va-brand"><div className="va-logo">P</div><div className="va-name">Pyn</div></div>
           <div className="va-msg err" style={{ marginTop: 16 }}>
             Accounts aren’t configured yet. Add <b>VITE_SUPABASE_URL</b> and <b>VITE_SUPABASE_ANON_KEY</b> to your
             environment variables, then redeploy. (See the README.)
@@ -134,7 +134,7 @@ function AuthForm() {
   return (
     <div className="va-root"><style>{css}</style>
       <div className="va-card">
-        <div className="va-brand"><div className="va-logo">V</div><div className="va-name">Vialo</div></div>
+        <div className="va-brand"><div className="va-logo">P</div><div className="va-name">Pyn</div></div>
         <div className="va-sub">{mode === "signin" ? "Sign in to your protocol" : "Create your account"}</div>
 
         {err && <div className="va-msg err">{err}</div>}

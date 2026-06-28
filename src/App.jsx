@@ -18,7 +18,7 @@ const CSS = `
   --bg:#f5f6f8; --surface:#ffffff; --surface-2:#fafbfc;
   --ink:#1b1e25; --ink-2:#6b7280; --ink-3:#aab0ba;
   --line:#edeef1; --line-2:#e3e5ea;
-  --accent:#1c8a74; --accent-soft:#e7f3f0; --accent-ink:#0f6b58;
+  --accent:#f0dd9c; --accent-soft:#fef9e8; --accent-ink:#20211e;
   --amber:#c98a1e; --amber-soft:#fbf2dd; --red:#d6453c; --red-soft:#fdf0ef;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
   font-family:var(--sans); color:var(--ink); background:var(--bg);
@@ -802,7 +802,7 @@ export default function App(){
     setAiError(null); setAiLoading(true);
     const list=peptides.map(p=>`${p.name} — ${scheduleLabel(p)}${p.time?` at ${fmtTime(p.time)}`:""}`).join("; ");
     try{
-      const res=await fetch("/api/anthropic",{method:"POST",headers:{"Content-Type":"application/json"},
+      const res=await fetch(`${import.meta.env.VITE_API_BASE || ""}/api/anthropic`,{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,
           system:"You are a careful wellness-information assistant inside a peptide-tracking app. Offer GENERAL, EDUCATIONAL information about dietary supplements commonly discussed as supportive alongside the user's regimen. You are NOT a doctor: never give personalized medical advice, diagnoses, treatment plans, or doses/amounts. Flag interactions or cautions — especially with prescription or investigational compounds (e.g. GLP-1 class drugs) — and encourage consulting a clinician or pharmacist. Output MINIFIED JSON ONLY: no markdown, no code fences, no text outside the JSON. Keep it concise (well under 250 words).",
           messages:[{role:"user",content:`Regimen: ${list}.\n\nSuggest 4-6 widely-discussed supportive supplements people often pair with a regimen like this. No doses. Keep every string short.\n\nReturn exactly this JSON shape: {"summary":"1 sentence","suggestions":[{"name":"","category":"e.g. Mineral/Vitamin/Amino acid/Antioxidant","rationale":"<=15 words","timing":"short e.g. Morning / With food","caution":"optional, short"}],"interactions":["short note specific to this regimen"],"disclaimer":"1 short sentence"}`}]})});
@@ -1563,7 +1563,7 @@ function EditSheet({open,peptide,onClose,onSave,onDelete,onHistory}){
     try{
       const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=()=>rej(new Error("Couldn’t read that image."));r.readAsDataURL(file);});
       const media=/^image\/(jpeg|png|gif|webp)$/.test(file.type||"")?file.type:"image/jpeg";
-      const resp=await fetch("/api/anthropic",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const resp=await fetch(`${import.meta.env.VITE_API_BASE || ""}/api/anthropic`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:"claude-sonnet-4-6",max_tokens:400,
         system:"You read a peptide vial label or a prescription label and extract only what is clearly printed. Never guess or infer a value that is not visible. Reply with MINIFIED JSON ONLY — no markdown, no commentary.",
         messages:[{role:"user",content:[
