@@ -5,33 +5,44 @@ import App from "./App.jsx";
 
 const ACCENT = "#f0dd9c";
 
+const DropletSVG = () => (
+  <svg width="48" height="48" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1024" height="1024" rx="228" fill="#f0dd9c"/>
+    <path d="M512 751 C705 489 671 228 512 216 C353 228 319 489 512 751 Z" fill="#20211e"/>
+  </svg>
+);
+
 const css = `
-.va-root{position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;padding:22px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1c2128;overflow:auto;}
-.va-card{width:100%;max-width:380px;background:#fff;border:1px solid #ebedf0;border-radius:22px;padding:28px 24px;box-shadow:0 12px 40px rgba(28,33,40,.06);}
-.va-brand{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:4px;}
-.va-logo{width:34px;height:34px;border-radius:10px;background:${ACCENT};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;}
-.va-name{font-size:22px;font-weight:780;letter-spacing:-.02em;}
-.va-sub{text-align:center;color:#6b7280;font-size:13.5px;margin:6px 0 20px;}
-.va-field{margin-bottom:11px;}
-.va-label{display:block;font-size:12px;font-weight:650;color:#6b7280;margin:0 0 5px 2px;}
-.va-input{width:100%;box-sizing:border-box;border:1px solid #e2e5e9;border-radius:12px;padding:12px 13px;font-size:15px;outline:none;background:#fafbfc;color:#1c2128;transition:border .15s;}
-.va-input:focus{border-color:${ACCENT};background:#fff;}
-.va-btn{width:100%;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .05s;}
+.va-root{position:fixed;inset:0;background:#ecd9a0;display:flex;align-items:center;justify-content:center;padding:30px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#20211e;overflow:auto;}
+.va-card{width:100%;max-width:380px;background:transparent;border:none;border-radius:0;padding:0;box-shadow:none;}
+.va-brand{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;margin-bottom:24px;}
+.va-logo{width:48px;height:48px;display:flex;align-items:center;justify-content:center;}
+.va-logo svg{width:48px;height:48px;}
+.va-name{font-size:31px;font-weight:600;letter-spacing:0.24em;color:#20211e;text-align:center;}
+.va-tagline{font-size:10px;font-weight:500;letter-spacing:0.26em;color:#8a7a52;text-align:center;text-transform:uppercase;}
+.va-sub{text-align:center;color:#8a7a52;font-size:13.5px;margin:0 0 20px;}
+.va-field{margin-bottom:12px;}
+.va-label{display:none;}
+.va-input{width:100%;box-sizing:border-box;height:50px;border:0.5px solid #d8c890;border-radius:13px;padding:0 17px;font-size:15px;outline:none;background:#fbf7ee;color:#20211e;transition:border .15s;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+.va-input:focus{border-color:#d8c890;background:#fbf7ee;}
+.va-input::placeholder{color:#bca974;}
+.va-btn{width:100%;border:none;border-radius:25px;padding:0;height:50px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s,transform .05s;}
 .va-btn:active{transform:scale(.99);}
-.va-btn-primary{background:${ACCENT};color:#fff;margin-top:4px;}
+.va-btn-primary{background:#20211e;color:#f2ede3;margin-top:8px;}
+.va-btn-primary:hover{background:#3a3935;}
 .va-btn-primary:disabled{opacity:.6;cursor:default;}
-.va-oauth{display:flex;align-items:center;justify-content:center;gap:9px;background:#fff;border:1px solid #e2e5e9;color:#1c2128;margin-top:9px;}
-.va-oauth:hover{background:#fafbfc;}
-.va-divider{display:flex;align-items:center;gap:10px;color:#9aa1ab;font-size:12px;margin:17px 0;}
-.va-divider::before,.va-divider::after{content:"";flex:1;height:1px;background:#ebedf0;}
-.va-toggle{text-align:center;font-size:13.5px;color:#6b7280;margin-top:18px;}
-.va-toggle button{background:none;border:none;color:${ACCENT};font-weight:700;cursor:pointer;font-size:13.5px;padding:0 2px;}
+.va-oauth{display:flex;align-items:center;justify-content:center;gap:9px;background:transparent;border:0.5px solid #bca974;color:#20211e;margin-top:12px;}
+.va-oauth:hover{background:#fbf7ee;}
+.va-divider{display:flex;align-items:center;gap:10px;color:#8a7a52;font-size:12px;margin:18px 0;}
+.va-divider::before,.va-divider::after{content:"";flex:1;height:0.5px;background:#d8c890;}
+.va-toggle{text-align:center;font-size:13.5px;color:#8a7a52;margin-top:20px;}
+.va-toggle button{background:none;border:none;color:#20211e;font-weight:700;cursor:pointer;font-size:13.5px;padding:0 2px;text-decoration:underline;}
 .va-msg{border-radius:11px;padding:10px 12px;font-size:13px;margin-bottom:12px;line-height:1.4;}
 .va-msg.err{background:#fdecec;color:#b4231f;}
 .va-msg.ok{background:#e8f5f1;color:#15705e;}
-.va-foot{text-align:center;font-size:11.5px;color:#9aa1ab;margin-top:18px;line-height:1.5;}
-.va-load{position:fixed;inset:0;background:#f5f6f8;display:flex;align-items:center;justify-content:center;}
-.va-spin{width:26px;height:26px;border:3px solid #e2e5e9;border-top-color:${ACCENT};border-radius:50%;animation:vaspin .7s linear infinite;}
+.va-foot{text-align:center;font-size:11.5px;color:#8a7a52;margin-top:20px;line-height:1.5;}
+.va-load{position:fixed;inset:0;background:#ecd9a0;display:flex;align-items:center;justify-content:center;}
+.va-spin{width:26px;height:26px;border:3px solid #d8c890;border-top-color:#20211e;border-radius:50%;animation:vaspin .7s linear infinite;}
 @keyframes vaspin{to{transform:rotate(360deg);}}
 `;
 
@@ -80,7 +91,7 @@ export default function AuthGate() {
     return (
       <div className="va-root"><style>{css}</style>
         <div className="va-card">
-          <div className="va-brand"><div className="va-logo">P</div><div className="va-name">PYN</div></div>
+          <div className="va-brand"><div className="va-logo"><DropletSVG /></div><div className="va-name">PYN</div><div className="va-tagline">Your Protocol, Handled</div></div>
           <div className="va-msg err" style={{ marginTop: 16 }}>
             Accounts aren’t configured yet. Add <b>VITE_SUPABASE_URL</b> and <b>VITE_SUPABASE_ANON_KEY</b> to your
             environment variables, then redeploy. (See the README.)
@@ -134,7 +145,7 @@ function AuthForm() {
   return (
     <div className="va-root"><style>{css}</style>
       <div className="va-card">
-        <div className="va-brand"><div className="va-logo">P</div><div className="va-name">PYN</div></div>
+        <div className="va-brand"><div className="va-logo"><DropletSVG /></div><div className="va-name">PYN</div><div className="va-tagline">Your Protocol, Handled</div></div>
         <div className="va-sub">{mode === "signin" ? "Sign in to your protocol" : "Create your account"}</div>
 
         {err && <div className="va-msg err">{err}</div>}
@@ -171,7 +182,7 @@ function AuthForm() {
         </div>
 
         <div className="va-foot">
-          Your data is private to your account. Vialo is for tracking and education only — not medical advice.
+          Your data is private to your account. PYN is for tracking and education only — not medical advice.
         </div>
       </div>
     </div>
