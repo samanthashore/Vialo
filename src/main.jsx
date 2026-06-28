@@ -1,10 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import "./storage.js"; // installs window.storage (localStorage-backed) before App mounts
-import App from "./App.jsx";
+import "./storage.js";      // installs window.storage (Supabase-backed, per-user)
+import AuthGate from "./AuthGate.jsx";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <AuthGate />
   </React.StrictMode>,
 );
