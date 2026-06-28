@@ -1,4 +1,4 @@
-# Vialo — peptide & GLP-1 tracker (now with accounts)
+# Pyn — peptide & GLP-1 tracker (now with accounts)
 
 Vite + React app with **real accounts and a database** (Supabase). People sign up
 with email + password or Google/Apple, and their peptides, logs, and progress are
