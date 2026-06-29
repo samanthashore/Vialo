@@ -19,7 +19,7 @@ const CSS = `
   --ink:#20211e; --ink-2:#a39a88; --ink-3:#bdb4a3;
   --line:#eeeae0; --line-2:#eeeae0;
   --accent:#f0da88; --accent-soft:#fdf9f0; --accent-ink:#20211e;
-  --amber:#a39a88; --amber-soft:#f3efe6; --red:#d6453c; --red-soft:#fdf0ef;
+  --amber:#a39a88; --amber-soft:#f3efe6; --red:#b5503e; --red-soft:#fdf0ef;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
   font-family:var(--sans); color:var(--ink); background:var(--bg);
   position:relative; display:flex; flex-direction:column;
@@ -143,7 +143,7 @@ const CSS = `
 .pos-calc-sub{font-size:13px;color:var(--accent-ink);opacity:0.85;margin-top:4px;font-weight:600;}
 .pos-syringe{margin-top:16px;}
 .pos-syr-barrel{position:relative;height:34px;border:2px solid var(--line-2);border-radius:8px;background:var(--surface-2);overflow:hidden;}
-.pos-syr-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#bfe3da,#1c8a74);transition:width .4s;}
+.pos-syr-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#f3efe6,#ecd9a0);transition:width .4s;}
 .pos-syr-ticks{display:flex;justify-content:space-between;margin-top:5px;font-size:9.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;}
 .pos-note{display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--ink-3);line-height:1.5;margin-top:14px;}
 .pos-mini-tabs{display:flex;background:var(--line);border-radius:11px;padding:3px;margin-bottom:14px;}
@@ -400,7 +400,7 @@ const SUGGESTIONS = ["BPC-157","TB-500","Ipamorelin","CJC-1295","Tesamorelin","S
 const LAB_MARKERS = ["IGF-1","Total Testosterone","Free Testosterone","Estradiol (E2)","SHBG","HbA1c","Fasting Glucose","Fasting Insulin","hs-CRP","ALT","AST","HDL","LDL","Triglycerides","TSH","Free T3","Free T4","Cortisol","Vitamin D","Ferritin","Prolactin","Hematocrit"];
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DOW1 = ["S","M","T","W","T","F","S"];
-const CONFETTI_COLORS = ["#1c8a74","#4f7cc4","#8a6fd1","#4fa76b","#c77d4a","#dd7a5e","#d26a88","#c9a23f"];
+const CONFETTI_COLORS = ["#ecd9a0","#f0da88","#f3efe6","#20211e","#a39a88","#bdb4a3","#2f5d5a","#4f7d5f"];
 const SITES=[
   {id:"abL",name:"Abdomen · Left",short:"L abdomen",x:38,y:120},{id:"abR",name:"Abdomen · Right",short:"R abdomen",x:62,y:120},
   {id:"lhL",name:"Love handle · Left",short:"L flank",x:24,y:132},{id:"lhR",name:"Love handle · Right",short:"R flank",x:76,y:132},
