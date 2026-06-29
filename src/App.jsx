@@ -1140,28 +1140,10 @@ function Tools({peptides,logs,metrics,now}){
     <div className="pos-mini-tabs">
       <button className={mode==="calc"?"active":""} onClick={()=>setMode("calc")}>Draw calculator</button>
       <button className={mode==="backup"?"active":""} onClick={()=>setMode("backup")}>Backup</button>
-      <button className={mode==="account"?"active":""} onClick={()=>setMode("account")}>Account</button>
     </div>
     {mode==="calc"&&<ReconCalc/>}
     {mode==="backup"&&<Backup peptides={peptides} logs={logs} metrics={metrics}/>}
-    {mode==="account"&&<AccountCard/>}
   </>);
-}
-
-function AccountCard(){
-  const[email,setEmail]=useState("");
-  const[busy,setBusy]=useState(false);
-  useEffect(()=>{let on=true;supabase?.auth?.getUser().then(({data})=>{if(on)setEmail(data?.user?.email||"");});return()=>{on=false;};},[]);
-  const signOut=async()=>{setBusy(true);try{await supabase.auth.signOut();}catch(_){}};
-  return(<div className="pos-tool-card">
-    <div className="pos-tool-head"><div className="pos-tool-ic"><ShieldCheck size={20}/></div><div><div className="pos-tool-t">Account</div><div className="pos-tool-s">Your data syncs to this account</div></div></div>
-    <div style={{marginTop:14,padding:"12px 13px",border:"1px solid var(--line-2)",borderRadius:12,background:"var(--surface-2)",fontSize:14}}>
-      <div style={{fontSize:11.5,fontWeight:650,color:"var(--ink-3)",marginBottom:3}}>Signed in as</div>
-      <div style={{fontWeight:680,wordBreak:"break-all"}}>{email||"…"}</div>
-    </div>
-    <button className="pos-btn" style={{marginTop:14,width:"100%",background:"transparent",border:"1px solid var(--line-2)",color:"var(--ink)"}} disabled={busy} onClick={signOut}>{busy?"Signing out…":"Sign out"}</button>
-    <div className="pos-note"><ShieldCheck size={13} style={{flexShrink:0,marginTop:1,color:"var(--accent)"}}/>Your peptides, logs, and progress are stored privately in your account and sync across your devices when you sign in.</div>
-  </div>);
 }
 
 function ReconCalc(){
