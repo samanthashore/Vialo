@@ -67,7 +67,7 @@ export default function AuthGate() {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setChecking(false);
-    });
+    }).catch(() => setChecking(false));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
