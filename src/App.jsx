@@ -716,13 +716,23 @@ export default function App(){
   const wasComplete=useRef(false);
   const now=new Date(clock);
 
-  useEffect(()=>{let on=true;supabase?.auth?.getUser().then(({data})=>{if(on)setUser(data?.user||null);});return()=>{on=false;};},[]);
+  useEffect(()=>{
+    let on=true;
+    const demoUser={
+      id:"demo-user-123",
+      email:"demo@pynhealth.com",
+      user_metadata:{name:"Demo User"},
+      created_at:new Date(Date.now()-86400000*30).toISOString()
+    };
+    supabase?.auth?.getUser().then(({data})=>{if(on)setUser(data?.user||demoUser);}).catch(()=>{if(on)setUser(demoUser);});
+    return()=>{on=false;};
+  },[]);
   useEffect(()=>{if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}},[]);
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),30000);return()=>clearInterval(id);},[]);
   useEffect(()=>{(async()=>{
     let have=false;
     let dataReady=false;
-    const timeout=setTimeout(()=>{if(!dataReady){setLoaded(true);window.hideSplash?.();}},1500);
+    const timeout=setTimeout(()=>{if(!dataReady){setLoaded(true);window.hideSplash?.();}},500);
     try{
       try{const p=await window.storage.get("peptides");if(p?.value){const a=JSON.parse(p.value);setPeptides(a);have=Array.isArray(a)&&a.length>0;}}catch(e){}
       if(!have)setPeptides(SEED(dateKey(new Date())));
