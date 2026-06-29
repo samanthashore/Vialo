@@ -711,9 +711,12 @@ export default function App(){
   const[journeyPeptide,setJourneyPeptide]=useState(null);
   const[historyPeptide,setHistoryPeptide]=useState(null);
   const[pickSite,setPickSite]=useState(null);
+  const[user,setUser]=useState(null);
+  const[showAccount,setShowAccount]=useState(false);
   const wasComplete=useRef(false);
   const now=new Date(clock);
 
+  useEffect(()=>{let on=true;supabase?.auth?.getUser().then(({data})=>{if(on)setUser(data?.user||null);});return()=>{on=false;};},[]);
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),30000);return()=>clearInterval(id);},[]);
   useEffect(()=>{(async()=>{
     let have=false;
@@ -829,7 +832,7 @@ export default function App(){
     <div className="pos-root" style={clinicTheme}>
       <style>{CSS}</style>
       <div className="pos-scroll">
-        {tab==="today"&&<Today now={now} due={dueToday} done={doneToday} taken={taken} onLog={logDose} onRemove={removeFromToday} logAll={logAll} logs={logs} peptides={peptides} metrics={metrics} clinic={clinic} addEnergy={addEnergy} onPickSite={p=>setPickSite(p)} onClinic={()=>setShowClinic(true)} onAdd={()=>setEditing("new")} onShare={()=>setShare(true)}/>}
+        {tab==="today"&&<Today now={now} due={dueToday} done={doneToday} taken={taken} onLog={logDose} onRemove={removeFromToday} logAll={logAll} logs={logs} peptides={peptides} metrics={metrics} clinic={clinic} addEnergy={addEnergy} onPickSite={p=>setPickSite(p)} onClinic={()=>setShowClinic(true)} onAdd={()=>setEditing("new")} onShare={()=>setShare(true)} user={user} onAccount={()=>setShowAccount(true)}/>}
         {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)}/>}
         {tab==="tools"&&<Tools peptides={peptides} logs={logs} metrics={metrics} now={now}/>}
         {tab==="pair"&&<Pairings peptides={peptides} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack} onAdd={()=>setEditing("new")}/>}
@@ -851,18 +854,103 @@ export default function App(){
       <SitePicker open={!!pickSite} peptide={pickSite} metrics={metrics} now={now} onPick={(sid)=>{setDoseSite(pickSite.id,sid);setPickSite(null);}} onClose={()=>setPickSite(null)}/>
       <EditSheet key={editing==="new"?"new":editing?.id||"closed"} open={!!editing} peptide={editing==="new"?null:editing} onClose={()=>setEditing(null)} onSave={savePeptide} onDelete={deletePeptide} onHistory={p=>setHistoryPeptide(p)}/>
       <HistorySheet open={!!historyPeptide} peptide={historyPeptide} logs={logs} now={now} onToggle={toggleLogOn} onClose={()=>setHistoryPeptide(null)}/>
+      <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} onClose={()=>setShowAccount(false)} now={now}/>
     </div>
   );
 }
 
 function Tab({icon:Icon,label,active,onClick}){return(<button className={`pos-tab ${active?"active":""}`} onClick={onClick}><Icon size={21} strokeWidth={active?2.4:2}/><span className="pos-tab-lbl">{label}</span></button>);}
+
+/* ---------- ACCOUNT SHEET ---------- */
+function AccountSheet({open,user,clinic,metrics,now,onClose}){
+  const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
+  const[editName,setEditName]=useState(false),[name,setName]=useState("");
+  const[nameLoading,setNameLoading]=useState(false);
+  const[deleteConfirm,setDeleteConfirm]=useState(false);
+  const[deleteBusy,setDeleteBusy]=useState(false);
+  const[reminderTime,setReminderTime]=useState("09:00");
+  const[notifyOn,setNotifyOn]=useState(true);
+  const[unit,setUnit]=useState("lb");
+  useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
+  useEffect(()=>{if(user){setName(user.user_metadata?.name||"");setUnit((metrics?.unit||"lb"));}},[ user,metrics]);
+  if(!render||!user)return null;
+  const initials=(name||user.email||"?").split(" ").map(p=>p[0]).join("").slice(0,2).toUpperCase();
+  const memberSince=user.created_at?new Date(user.created_at).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}):"—";
+  const saveName=async()=>{
+    if(!name.trim())return;
+    setNameLoading(true);
+    try{
+      await supabase.auth.updateUser({data:{...user.user_metadata,name:name.trim()}});
+      setEditName(false);
+    }catch(e){alert(`Couldn't save name: ${e.message}`);}
+    setNameLoading(false);
+  };
+  const deleteAccount=async()=>{
+    setDeleteBusy(true);
+    try{
+      await supabase.auth.admin.deleteUser(user.id);
+      await supabase.auth.signOut();
+    }catch(e){
+      alert(`Couldn't delete account: ${e.message}`);
+      setDeleteBusy(false);
+    }
+  };
+  const signOut=async()=>{try{await supabase.auth.signOut();}catch(_){}};
+  return(<>
+    <div className={`pos-ov ${anim?"open":""}`} onClick={onClose}/>
+    <div className={`pos-sheet ${anim?"open":""}`}>
+      <div className="pos-grab"/>
+      <div className="pos-snav"><button onClick={onClose}>Close</button><span className="pos-snav-t">Account</span><span style={{width:54}}/></div>
+      <div className="pos-sbody">
+        <div style={{display:"flex",alignItems:"center",gap:16,padding:"16px 4px 20px",borderBottom:"1px solid var(--line)"}}>
+          <div style={{width:64,height:64,borderRadius:"50%",background:"var(--accent)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:800}}>{initials}</div>
+          <div style={{flex:1,minWidth:0}}>
+            {editName?<>
+              <input type="text" value={name} onChange={e=>setName(e.target.value)} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"8px 12px",fontSize:14,fontFamily:"var(--sans)",marginBottom:6}} onKeyDown={e=>e.key==="Enter"&&saveName()}/>
+              <div style={{display:"flex",gap:8}}><button onClick={saveName} disabled={nameLoading} style={{flex:1,background:"var(--accent)",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{nameLoading?"Saving…":"Save"}</button><button onClick={()=>setEditName(false)} style={{flex:1,background:"var(--surface-2)",border:"none",borderRadius:6,padding:"6px 12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button></div>
+            </>:<>
+              <div style={{fontSize:18,fontWeight:780}}>{name||"—"}</div>
+              <div style={{fontSize:13,color:"var(--ink-2)",marginTop:3}}>{user.email}</div>
+              <button onClick={()=>setEditName(true)} style={{marginTop:8,background:"none",border:"none",fontSize:12,fontWeight:700,color:"var(--accent)",cursor:"pointer",padding:0}}>Edit name</button>
+            </>}
+          </div>
+        </div>
+        <div style={{padding:"16px 0 12px"}}>
+          <div className="pos-eyebrow" style={{paddingLeft:6}}>Member since</div>
+          <div style={{fontSize:15,fontWeight:680,padding:"10px 6px"}}>{memberSince}</div>
+        </div>
+        {clinic&&<div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}>
+          <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:8}}>Connected care</div>
+          <div style={{background:"var(--surface-2)",borderRadius:14,padding:"14px",border:"1px solid var(--line)"}}><div style={{fontSize:14,fontWeight:740,color:"#2f5d5a"}}>{clinic.name}</div><div style={{fontSize:12,color:"var(--ink-2)",marginTop:4}}>Status: Connected</div></div>
+        </div>}
+        <div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}>
+          <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:10}}>Preferences</div>
+          <div style={{background:"var(--surface)",borderRadius:12,overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",borderBottom:"1px solid var(--line)"}}><span style={{fontSize:14,fontWeight:600}}>Notifications</span><button className={`pos-toggle ${notifyOn?"on":""}`} onClick={()=>setNotifyOn(!notifyOn)} style={{cursor:"pointer"}}/></div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",borderBottom:"1px solid var(--line)"}}><span style={{fontSize:14,fontWeight:600}}>Units</span><select value={unit} onChange={e=>setUnit(e.target.value)} style={{border:"1px solid var(--line-2)",borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"var(--sans)",cursor:"pointer",outline:"none"}}><option>lb</option><option>kg</option></select></div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px"}}><span style={{fontSize:14,fontWeight:600}}>Reminder</span><input type="time" value={reminderTime} onChange={e=>setReminderTime(e.target.value)} style={{border:"1px solid var(--line-2)",borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"var(--sans)",cursor:"pointer",outline:"none"}}/></div>
+          </div>
+        </div>
+        <div style={{borderTop:"1px solid var(--line)",paddingTop:16}}>
+          <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:10}}>Data &amp; privacy</div>
+          <button style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",background:"var(--surface)",border:"1px solid var(--line)",borderRadius:12,cursor:"pointer",marginBottom:8,fontSize:14,fontWeight:600,fontFamily:"var(--sans)"}}><span>Export my data</span><ExternalLink size={15}/></button>
+          {deleteConfirm?<>
+            <div style={{background:"var(--red-soft)",border:"1px solid var(--red)",borderRadius:12,padding:"13px 15px",marginBottom:8}}><div style={{fontSize:14,fontWeight:700,color:"var(--red)",marginBottom:10}}>Delete account?</div><div style={{fontSize:12,color:"var(--ink-2)",marginBottom:12,lineHeight:1.5}}>This will permanently delete your account and all your peptide logs, streaks, and settings. This cannot be undone.</div><div style={{display:"flex",gap:8}}><button onClick={deleteAccount} disabled={deleteBusy} style={{flex:1,background:"var(--red)",color:"#fff",border:"none",borderRadius:8,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{deleteBusy?"Deleting…":"Delete"}</button><button onClick={()=>setDeleteConfirm(false)} style={{flex:1,background:"var(--surface)",border:"1px solid var(--line)",borderRadius:8,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button></div></div>
+          </>:<button onClick={()=>setDeleteConfirm(true)} style={{width:"100%",padding:"13px 15px",background:"var(--surface-2)",border:"1px solid var(--line-2)",borderRadius:12,cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"var(--sans)",color:"var(--red)"}}>Delete my account</button>}
+        </div>
+        <button onClick={signOut} style={{width:"100%",marginTop:16,marginBottom:20,padding:"14px",background:"var(--ink)",color:"#fff",border:"none",borderRadius:12,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Sign out</button>
+        <div className="pos-note" style={{marginBottom:0}}><ShieldCheck size={13} style={{flexShrink:0,marginTop:1,color:"var(--accent)"}}/>Your data is encrypted and stored in your account. You control when you delete it.</div>
+      </div>
+    </div>
+  </>);
+}
 function Confetti(){
   const pieces=useMemo(()=>Array.from({length:64},(_,i)=>({left:Math.random()*100,color:CONFETTI_COLORS[i%CONFETTI_COLORS.length],delay:Math.random()*0.5,dur:1.8+Math.random()*1.3,w:6+Math.random()*6,rot:Math.random()*360})),[]);
   return(<div className="pos-confetti">{pieces.map((p,i)=>(<span key={i} className="pos-cpiece" style={{left:`${p.left}%`,background:p.color,width:p.w,height:p.w*1.5,animationDelay:`${p.delay}s`,animationDuration:`${p.dur}s`,transform:`rotate(${p.rot}deg)`}}/>))}</div>);
 }
 
 /* ---------- TODAY ---------- */
-function Today({now,due,done,taken,onLog,onRemove,logAll,logs,peptides,metrics,clinic,addEnergy,onPickSite,onClinic,onAdd,onShare}){
+function Today({now,due,done,taken,onLog,onRemove,logAll,logs,peptides,metrics,clinic,addEnergy,onPickSite,onClinic,onAdd,onShare,user,onAccount}){
   const items=due.map(p=>{const rotate=p.rotate!==false;return{...p,_taken:taken(p.id,now),_min:tmin(p.time),_rotate:rotate,_site:rotate?(metrics?.doseSites||{})[`${p.id}__${dateKey(now)}`]:null,_suggest:rotate?suggestSite(peptideSiteMap(metrics,p.id),now).id:null};});
   const nowMin=now.getHours()*60+now.getMinutes();
   const todayEnergy=(metrics?.energy||{})[dateKey(now)];
@@ -881,7 +969,7 @@ function Today({now,due,done,taken,onLog,onRemove,logAll,logs,peptides,metrics,c
   return(<>
     <div className="pos-head">
       <div><div className="pos-h-eyebrow">{dateStr}</div><div className="pos-title">Today</div></div>
-      <div className="pos-head-actions"><button className="pos-iconbtn" onClick={onShare} aria-label="Share"><Share2 size={18}/></button><button className="pos-iconbtn" onClick={onAdd} aria-label="Add"><Plus size={21}/></button></div>
+      <div className="pos-head-actions">{user&&<button className="pos-iconbtn" onClick={onAccount} aria-label="Account" style={{fontSize:12,fontWeight:800,color:"var(--accent)"}}>{(user.user_metadata?.name||user.email||"?").split(" ")[0].slice(0,2).toUpperCase()}</button>}<button className="pos-iconbtn" onClick={onShare} aria-label="Share"><Share2 size={18}/></button><button className="pos-iconbtn" onClick={onAdd} aria-label="Add"><Plus size={21}/></button></div>
     </div>
     {clinic&&<ClinicBanner clinic={clinic} onManage={onClinic}/>}
     <div className="pos-hero">
