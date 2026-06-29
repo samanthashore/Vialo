@@ -18,8 +18,9 @@ const CSS = `
   --bg:#ffffff; --surface:#fbf9f4; --surface-2:#f3efe6;
   --ink:#20211e; --ink-2:#a39a88; --ink-3:#bdb4a3;
   --line:#eeeae0; --line-2:#eeeae0;
-  --accent:#f0da88; --accent-soft:#fdf9f0; --accent-ink:#20211e;
+  --accent:#f0da88; --accent-soft:#f3efe6; --accent-ink:#20211e;
   --amber:#a39a88; --amber-soft:#f3efe6; --red:#b5503e; --red-soft:#fdf0ef;
+  --spruce:var(--spruce); --spruce-soft:var(--spruce-soft); --success:#4f7d5f; --warning:#b87a2e;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
   font-family:var(--sans); color:var(--ink); background:var(--bg);
   position:relative; display:flex; flex-direction:column;
@@ -400,7 +401,7 @@ const SUGGESTIONS = ["BPC-157","TB-500","Ipamorelin","CJC-1295","Tesamorelin","S
 const LAB_MARKERS = ["IGF-1","Total Testosterone","Free Testosterone","Estradiol (E2)","SHBG","HbA1c","Fasting Glucose","Fasting Insulin","hs-CRP","ALT","AST","HDL","LDL","Triglycerides","TSH","Free T3","Free T4","Cortisol","Vitamin D","Ferritin","Prolactin","Hematocrit"];
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DOW1 = ["S","M","T","W","T","F","S"];
-const CONFETTI_COLORS = ["#ecd9a0","#f0da88","#f3efe6","#20211e","#a39a88","#bdb4a3","#2f5d5a","#4f7d5f"];
+const CONFETTI_COLORS = ["#ecd9a0","#f0da88","#f3efe6","#20211e","#a39a88","#bdb4a3","var(--spruce)","#4f7d5f"];
 const SITES=[
   {id:"abL",name:"Abdomen · Left",short:"L abdomen",x:38,y:120},{id:"abR",name:"Abdomen · Right",short:"R abdomen",x:62,y:120},
   {id:"lhL",name:"Love handle · Left",short:"L flank",x:24,y:132},{id:"lhR",name:"Love handle · Right",short:"R flank",x:76,y:132},
@@ -990,16 +991,16 @@ function AccountSheet({open,user,clinic,metrics,now,onClose,onClinic,onSetUnit,o
         </div>
         {clinic&&<div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}>
           <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:8}}>Connected care</div>
-          <div style={{background:"linear-gradient(135deg, #2f5d5a22, #e3ece922)",borderRadius:14,padding:"16px",border:"1px solid #2f5d5a33"}}>
+          <div style={{background:"linear-gradient(135deg, var(--spruce)22, var(--spruce-soft)22)",borderRadius:14,padding:"16px",border:"1px solid var(--spruce)33"}}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-              <div style={{width:40,height:40,borderRadius:10,background:"#2f5d5a",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{clinic.emoji}</div>
+              <div style={{width:40,height:40,borderRadius:10,background:"var(--spruce)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{clinic.emoji}</div>
               <div style={{flex:1}}>
-                <div style={{fontSize:15,fontWeight:740,color:"#2f5d5a"}}>{clinic.name}</div>
+                <div style={{fontSize:15,fontWeight:740,color:"var(--spruce)"}}>{clinic.name}</div>
                 <div style={{fontSize:12,color:"var(--ink-2)",marginTop:2}}>Connected · {clinic.tagline||"Your protocol, beautifully managed"}</div>
               </div>
             </div>
-            <a href={clinic.storeUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,width:"100%",padding:"10px 14px",background:"#2f5d5a",color:"#fff",textDecoration:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:8}}><ExternalLink size={14}/>Shop &amp; reorder</a>
-            <button onClick={()=>{onClose();onClinic?.();}} style={{width:"100%",padding:"10px 14px",background:"var(--surface-2)",border:"1px solid var(--line)",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",color:"#2f5d5a",fontFamily:"var(--sans)"}}>Manage clinic</button>
+            <a href={clinic.storeUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,width:"100%",padding:"10px 14px",background:"var(--spruce)",color:"#fff",textDecoration:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:8}}><ExternalLink size={14}/>Shop &amp; reorder</a>
+            <button onClick={()=>{onClose();onClinic?.();}} style={{width:"100%",padding:"10px 14px",background:"var(--surface-2)",border:"1px solid var(--line)",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",color:"var(--spruce)",fontFamily:"var(--sans)"}}>Manage clinic</button>
           </div>
         </div>}
         <div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}>
