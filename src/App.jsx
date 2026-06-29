@@ -4,7 +4,7 @@ import {
   Zap, TrendingUp, RotateCcw, Sparkles, AlertTriangle, Clock, RefreshCw, ShieldCheck,
   Calculator, Package, Share2, Copy, Download, Award, X, CheckCheck,
   MapPin, Lock, HeartPulse, Droplet, Plug, FlaskConical,
-  BookOpen, ChevronLeft, Wand2, Stethoscope, ExternalLink, Building2, Camera, CalendarDays
+  BookOpen, ChevronLeft, Wand2, Stethoscope, ExternalLink, Building2, Camera, CalendarDays, User
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -566,12 +566,7 @@ const EXPECT={
     note:"Used situationally; clinician guidance advised."},
 };
 
-const SEED = (today) => ([
-  { id:"p_ghkcu", name:"GHK-Cu",      dose:"", color:"#c77d4a", time:"20:00", startDate:today, schedule:{type:"daily"} },
-  { id:"p_reta",  name:"Retatrutide", dose:"", color:"#4f7cc4", time:"20:00", startDate:today, schedule:{type:"weekly",days:[0]} },
-  { id:"p_nad",   name:"NAD+",        dose:"", color:"#8a6fd1", time:"07:30", startDate:today, schedule:{type:"everyN",n:2} },
-  { id:"p_glut",  name:"Glutathione", dose:"", color:"#4fa76b", time:"07:30", startDate:today, schedule:{type:"weekly",days:[1,2,3,4,5]} },
-]);
+const SEED = (today) => [];
 
 const pad = (n)=>String(n).padStart(2,"0");
 const dateKey = (d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -866,6 +861,7 @@ export default function App(){
         <Tab icon={Calculator} label="Tools" active={tab==="tools"} onClick={()=>setTab("tools")}/>
         <Tab icon={Sparkles} label="Pairings" active={tab==="pair"} onClick={()=>setTab("pair")}/>
         <Tab icon={Activity} label="Insights" active={tab==="insights"} onClick={()=>setTab("insights")}/>
+        <Tab icon={User} label="Profile" active={tab==="profile"} onClick={()=>{setShowAccount(true);setTab("profile")}}/>
       </nav>
       {celebrate&&<Confetti/>}
       <ShareCard open={share} peptides={peptides} logs={logs} now={now} onClose={()=>setShare(false)}/>
