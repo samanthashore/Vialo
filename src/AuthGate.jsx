@@ -69,10 +69,23 @@ export default function AuthGate() {
     const demoSession = {
       user: {
         id: "demo-user-123",
+        aud: "authenticated",
+        role: "authenticated",
         email: "demo@pynhealth.com",
-        user_metadata: { name: "Demo User" }
+        email_confirmed_at: new Date().toISOString(),
+        phone: "",
+        confirmed_at: new Date().toISOString(),
+        last_sign_in_at: new Date().toISOString(),
+        app_metadata: {},
+        user_metadata: { name: "Demo User" },
+        identities: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       },
-      access_token: "demo-token"
+      access_token: "demo-token",
+      refresh_token: "demo-refresh-token",
+      expires_in: 3600,
+      token_type: "bearer"
     };
     setSession(demoSession);
     setChecking(false);
