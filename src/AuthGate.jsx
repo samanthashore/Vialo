@@ -65,39 +65,11 @@ export default function AuthGate() {
   useEffect(() => {
     if (!supabaseConfigured) { setChecking(false); return; }
 
-    // DEMO MODE: Auto-login with demo user while auth is being fixed
-    const demoSession = {
-      user: {
-        id: "demo-user-123",
-        aud: "authenticated",
-        role: "authenticated",
-        email: "demo@pynhealth.com",
-        email_confirmed_at: new Date().toISOString(),
-        phone: "",
-        confirmed_at: new Date().toISOString(),
-        last_sign_in_at: new Date().toISOString(),
-        app_metadata: {},
-        user_metadata: { name: "Demo User" },
-        identities: [],
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      access_token: "demo-token",
-      refresh_token: "demo-refresh-token",
-      expires_in: 3600,
-      token_type: "bearer"
-    };
-    setSession(demoSession);
-    setChecking(false);
-    return;
-
-    // Original auth code (commented out for demo mode)
-    // Uncomment below to restore real Supabase authentication
-    /*
+    // Try to restore session from Supabase
     const authTimeout = setTimeout(() => {
-      console.error("Auth check timeout - proceeding without session");
+      console.error("Auth check timeout");
       setChecking(false);
-    }, 4000);
+    }, 3000);
 
     supabase.auth.getSession().then(({ data }) => {
       clearTimeout(authTimeout);
@@ -113,7 +85,6 @@ export default function AuthGate() {
       clearTimeout(authTimeout);
       sub?.subscription?.unsubscribe();
     };
-    */
   }, []);
 
   useEffect(() => {

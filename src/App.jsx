@@ -712,21 +712,10 @@ export default function App(){
   const[undoMsg,setUndoMsg]=useState(null);
   const[undoPid,setUndoPid]=useState(null);
   const[doseDetail,setDoseDetail]=useState(null);
-  const[onboarding,setOnboarding]=useState(null);
   const wasComplete=useRef(false);
   const now=new Date(clock);
 
-  useEffect(()=>{
-    let on=true;
-    const demoUser={
-      id:"demo-user-123",
-      email:"demo@pynhealth.com",
-      user_metadata:{name:"Demo User"},
-      created_at:new Date(Date.now()-86400000*30).toISOString()
-    };
-    supabase?.auth?.getUser().then(({data})=>{if(on)setUser(data?.user||demoUser);}).catch(()=>{if(on)setUser(demoUser);});
-    return()=>{on=false;};
-  },[]);
+  useEffect(()=>{let on=true;supabase?.auth?.getUser().then(({data})=>{if(on)setUser(data?.user||null);});return()=>{on=false;};},[]);
   useEffect(()=>{if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}},[]);
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),30000);return()=>clearInterval(id);},[]);
   useEffect(()=>{(async()=>{
@@ -742,7 +731,6 @@ export default function App(){
       try{const c=await window.storage.get("clinic_id");if(c?.value)setClinicId(JSON.parse(c.value));}catch(e){}
       clearTimeout(timeout);
       dataReady=true;
-      if(!have)setOnboarding("step1");
       setLoaded(true);
       window.hideSplash?.();
     }catch(e){
@@ -903,6 +891,7 @@ export default function App(){
         {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack}/>}
         {tab==="tools"&&<Tools peptides={peptides} logs={logs} metrics={metrics} now={now}/>}
         {tab==="insights"&&<Insights peptides={peptides} logs={logs} metrics={metrics} now={now} addWeight={addWeight} setUnit={setUnit} addRecovery={addRecovery} addLab={addLab} deleteLab={deleteLab} onShare={()=>setShare(true)}/>}
+        {tab==="profile"&&user&&<ProfileTab user={user} clinic={clinic} metrics={metrics} now={now} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime} onClinic={()=>setShowClinic(true)}/>}
       </div>
       <nav className="pos-tabs">
         <Tab icon={Zap} label="Today" active={tab==="today"} onClick={()=>setTab("today")}/>
@@ -920,9 +909,7 @@ export default function App(){
       <SitePicker open={!!pickSite} peptide={pickSite} metrics={metrics} now={now} onPick={(sid)=>{setDoseSite(pickSite.id,sid);setPickSite(null);}} onClose={()=>setPickSite(null)}/>
       <EditSheet key={editing==="new"?"new":editing?.id||"closed"} open={!!editing} peptide={editing==="new"?null:editing} onClose={()=>setEditing(null)} onSave={savePeptide} onDelete={deletePeptide} onHistory={p=>setHistoryPeptide(p)}/>
       <HistorySheet open={!!historyPeptide} peptide={historyPeptide} logs={logs} now={now} onToggle={toggleLogOn} onClose={()=>setHistoryPeptide(null)}/>
-      <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} onClose={()=>setShowAccount(false)} now={now} onClinic={()=>{setShowAccount(false);setShowClinic(true);}} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime}/>
       <DoseDetailSheet open={!!doseDetail} dose={doseDetail} metrics={metrics} now={now} onRemove={(pid)=>{removeFromToday(pid);setDoseDetail(null);}} onClose={()=>setDoseDetail(null)}/>
-      <Onboarding step={onboarding} onComplete={()=>setOnboarding(null)} onAdd={()=>{setOnboarding(null);setEditing("new");}} onClinic={()=>{setOnboarding(null);setShowClinic(true);}}/>
 
     </div>
   );
@@ -1872,20 +1859,32 @@ function EditSheet({open,peptide,onClose,onSave,onDelete,onHistory}){
   </>);
 }
 
-function Onboarding({step,onComplete,onAdd,onClinic}){
-  if(!step)return null;
+function ProfileTab({user,clinic,metrics,now,onSetUnit,onSetNotifications,onSetReminderTime,onClinic}){
+  const[editName,setEditName]=useState(false),[name,setName]=useState("");
+  const[nameLoading,setNameLoading]=useState(false);
+  const[deleteConfirm,setDeleteConfirm]=useState(false);
+  const[deleteBusy,setDeleteBusy]=useState(false);
+  useEffect(()=>{if(user){setName(user.user_metadata?.name||"");}},[user]);
+  const initials=(name||user.email||"?").split(" ").map(p=>p[0]).join("").slice(0,2).toUpperCase();
+  const memberSince=user.created_at?new Date(user.created_at).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}):"—";
+  const saveName=async()=>{if(!name.trim())return;setNameLoading(true);try{await supabase.auth.updateUser({data:{...user.user_metadata,name:name.trim()}});setEditName(false);}catch(e){alert(`Couldn't save name: ${e.message}`);}setNameLoading(false);};
+  const deleteAccount=async()=>{setDeleteBusy(true);try{await supabase.auth.admin.deleteUser(user.id);await supabase.auth.signOut();}catch(e){alert(`Couldn't delete account: ${e.message}`);setDeleteBusy(false);}};
+  const signOut=async()=>{try{await supabase.auth.signOut();}catch(_){}};
+  const exportData=()=>{const data={peptides:window.storage?.peptides||[],logs:window.storage?.logs||{},metrics:window.storage?.metrics||{},exportedAt:new Date().toISOString()};const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`pyn-export-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);};
   return(<>
-    <div style={{position:"fixed",inset:0,background:"rgba(20,28,46,0.5)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}/>
-    <div style={{position:"fixed",inset:0,zIndex:101,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:"var(--bg)",borderRadius:24,padding:"32px 24px",maxWidth:360,width:"100%",boxShadow:"0 20px 60px rgba(20,28,46,0.2)"}}>
-        {step==="step1"&&<>
-          <div style={{fontSize:32,marginBottom:12}}>👋</div>
-          <div style={{fontSize:22,fontWeight:780,marginBottom:8,color:"var(--ink)"}}>Welcome to PYN</div>
-          <div style={{fontSize:15,color:"var(--ink-2)",lineHeight:1.5,marginBottom:24}}>Let's set up your first peptide so you can start tracking your protocol.</div>
-          <button onClick={onAdd} style={{width:"100%",padding:"14px",background:"var(--ink)",color:"#fff",border:"none",borderRadius:16,fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:12,fontFamily:"var(--sans)"}}>Add my first peptide</button>
-          <button onClick={onComplete} style={{width:"100%",padding:"14px",background:"var(--surface-2)",border:"1px solid var(--line)",borderRadius:16,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Skip for now</button>
-        </>}
+    <div style={{padding:"20px 18px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:16,padding:"16px 4px 20px",borderBottom:"1px solid var(--line)"}}>
+        <div style={{width:64,height:64,borderRadius:"50%",background:"var(--accent)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:800}}>{initials}</div>
+        <div style={{flex:1,minWidth:0}}>
+          {editName?<><input type="text" value={name} onChange={e=>setName(e.target.value)} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"8px 12px",fontSize:14,fontFamily:"var(--sans)",marginBottom:6}} onKeyDown={e=>e.key==="Enter"&&saveName()}/><div style={{display:"flex",gap:8}}><button onClick={saveName} disabled={nameLoading} style={{flex:1,background:"var(--accent)",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{nameLoading?"Saving…":"Save"}</button><button onClick={()=>setEditName(false)} style={{flex:1,background:"var(--surface-2)",border:"none",borderRadius:6,padding:"6px 12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button></div></>:<><div style={{fontSize:18,fontWeight:780}}>{name||"—"}</div><div style={{fontSize:13,color:"var(--ink-2)",marginTop:3}}>{user.email}</div><button onClick={()=>setEditName(true)} style={{marginTop:8,background:"none",border:"none",fontSize:12,fontWeight:700,color:"var(--accent)",cursor:"pointer",padding:0}}>Edit name</button></>}
+        </div>
       </div>
+      <div style={{padding:"16px 0 12px"}}><div className="pos-eyebrow" style={{paddingLeft:6}}>Member since</div><div style={{fontSize:15,fontWeight:680,padding:"10px 6px"}}>{memberSince}</div></div>
+      {clinic&&<div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}><div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:8}}>Connected care</div><div style={{background:"linear-gradient(135deg, var(--spruce-soft), var(--spruce-soft))",borderRadius:14,padding:"16px",border:"1px solid var(--spruce)"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}><div style={{width:40,height:40,borderRadius:10,background:"var(--spruce)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{clinic.emoji}</div><div style={{flex:1}}><div style={{fontSize:15,fontWeight:740,color:"var(--spruce)"}}>{clinic.name}</div><div style={{fontSize:12,color:"var(--ink-2)",marginTop:2}}>Connected · {clinic.tagline||"Your protocol, beautifully managed"}</div></div></div><a href={clinic.storeUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,width:"100%",padding:"10px 14px",background:"var(--spruce)",color:"#fff",textDecoration:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:8}}><ExternalLink size={14}/>Shop &amp; reorder</a><button onClick={()=>onClinic?.()} style={{width:"100%",padding:"10px 14px",background:"var(--surface-2)",border:"1px solid var(--line)",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",color:"var(--spruce)",fontFamily:"var(--sans)"}}>Manage clinic</button></div></div>}
+      <div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}><div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:10}}>Preferences</div><div style={{background:"var(--surface)",borderRadius:12,overflow:"hidden"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",borderBottom:"1px solid var(--line)"}}><span style={{fontSize:14,fontWeight:600}}>Notifications</span><button className={`pos-toggle ${metrics?.notificationsOn?"on":""}`} onClick={()=>onSetNotifications?.(!metrics?.notificationsOn)} style={{cursor:"pointer"}}/></div><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",borderBottom:"1px solid var(--line)"}}><span style={{fontSize:14,fontWeight:600}}>Units</span><select value={metrics?.unit||"lb"} onChange={e=>onSetUnit?.(e.target.value)} style={{border:"1px solid var(--line-2)",borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"var(--sans)",cursor:"pointer",outline:"none"}}><option>lb</option><option>kg</option></select></div><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px"}}><span style={{fontSize:14,fontWeight:600}}>Reminder</span><input type="time" value={metrics?.reminderTime||"09:00"} onChange={e=>onSetReminderTime?.(e.target.value)} style={{border:"1px solid var(--line-2)",borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"var(--sans)",cursor:"pointer",outline:"none"}}/></div></div></div>
+      <div style={{borderTop:"1px solid var(--line)",paddingTop:16}}><div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:10}}>Data &amp; privacy</div><button onClick={exportData} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",background:"var(--surface)",border:"1px solid var(--line)",borderRadius:12,cursor:"pointer",marginBottom:8,fontSize:14,fontWeight:600,fontFamily:"var(--sans)"}}><span>Export my data</span><ExternalLink size={15}/></button>{deleteConfirm?<><div style={{background:"var(--red-soft)",border:"1px solid var(--red)",borderRadius:12,padding:"13px 15px",marginBottom:8}}><div style={{fontSize:14,fontWeight:700,color:"var(--red)",marginBottom:10}}>Delete account?</div><div style={{fontSize:12,color:"var(--ink-2)",marginBottom:12,lineHeight:1.5}}>This will permanently delete your account and all your peptide logs, streaks, and settings. This cannot be undone.</div><div style={{display:"flex",gap:8}}><button onClick={deleteAccount} disabled={deleteBusy} style={{flex:1,background:"var(--red)",color:"#fff",border:"none",borderRadius:8,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{deleteBusy?"Deleting…":"Delete"}</button><button onClick={()=>setDeleteConfirm(false)} style={{flex:1,background:"var(--surface)",border:"1px solid var(--line)",borderRadius:8,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button></div></div></>:<button onClick={()=>setDeleteConfirm(true)} style={{width:"100%",padding:"13px 15px",background:"var(--surface-2)",border:"1px solid var(--line-2)",borderRadius:12,cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"var(--sans)",color:"var(--red)"}}>Delete my account</button>}</div>
+      <button onClick={signOut} style={{width:"100%",marginTop:16,marginBottom:20,padding:"14px",background:"var(--ink)",color:"#fff",border:"none",borderRadius:12,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Sign out</button>
+      <div className="pos-note" style={{marginBottom:0}}><ShieldCheck size={13} style={{flexShrink:0,marginTop:1,color:"var(--accent)"}}/>Your data is encrypted and stored in your account. You control when you delete it.</div>
     </div>
   </>);
 }
