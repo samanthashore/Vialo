@@ -15,11 +15,11 @@ import { supabase } from "./supabaseClient";
 const CSS = `
 .pos-root *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 .pos-root{
-  --bg:#f5f6f8; --surface:#ffffff; --surface-2:#fafbfc;
-  --ink:#1b1e25; --ink-2:#6b7280; --ink-3:#aab0ba;
-  --line:#edeef1; --line-2:#e3e5ea;
-  --accent:#f0dd9c; --accent-soft:#fef9e8; --accent-ink:#20211e;
-  --amber:#c98a1e; --amber-soft:#fbf2dd; --red:#d6453c; --red-soft:#fdf0ef;
+  --bg:#ffffff; --surface:#fbf9f4; --surface-2:#f3efe6;
+  --ink:#20211e; --ink-2:#a39a88; --ink-3:#bdb4a3;
+  --line:#eeeae0; --line-2:#eeeae0;
+  --accent:#f0da88; --accent-soft:#fdf9f0; --accent-ink:#20211e;
+  --amber:#a39a88; --amber-soft:#f3efe6; --red:#d6453c; --red-soft:#fdf0ef;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
   font-family:var(--sans); color:var(--ink); background:var(--bg);
   position:relative; display:flex; flex-direction:column;
