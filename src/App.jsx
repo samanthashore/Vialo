@@ -850,16 +850,14 @@ export default function App(){
       <style>{CSS}</style>
       <div className="pos-scroll">
         {tab==="today"&&<Today now={now} due={dueToday} done={doneToday} taken={taken} pending={pendingToday} onLog={logDose} onRemove={removeFromToday} logAll={logAll} logs={logs} peptides={peptides} metrics={metrics} clinic={clinic} addEnergy={addEnergy} onPickSite={p=>setPickSite(p)} onClinic={()=>setShowClinic(true)} onAdd={()=>setEditing("new")} onShare={()=>setShare(true)} user={user} onAccount={()=>setShowAccount(true)} undoMsg={undoMsg} onUndo={undoDose} onDoseDetail={(d)=>setDoseDetail(d)}/>}
-        {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)}/>}
+        {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack}/>}
         {tab==="tools"&&<Tools peptides={peptides} logs={logs} metrics={metrics} now={now}/>}
-        {tab==="pair"&&<Pairings peptides={peptides} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack} onAdd={()=>setEditing("new")}/>}
         {tab==="insights"&&<Insights peptides={peptides} logs={logs} metrics={metrics} now={now} addWeight={addWeight} setUnit={setUnit} addRecovery={addRecovery} addLab={addLab} deleteLab={deleteLab} onShare={()=>setShare(true)}/>}
       </div>
       <nav className="pos-tabs">
         <Tab icon={Zap} label="Today" active={tab==="today"} onClick={()=>setTab("today")}/>
         <Tab icon={Layers} label="Stacks" active={tab==="stacks"} onClick={()=>setTab("stacks")}/>
         <Tab icon={Calculator} label="Tools" active={tab==="tools"} onClick={()=>setTab("tools")}/>
-        <Tab icon={Sparkles} label="Pairings" active={tab==="pair"} onClick={()=>setTab("pair")}/>
         <Tab icon={Activity} label="Insights" active={tab==="insights"} onClick={()=>setTab("insights")}/>
         <Tab icon={User} label="Profile" active={tab==="profile"} onClick={()=>{setShowAccount(true);setTab("profile")}}/>
       </nav>
@@ -934,7 +932,7 @@ function AccountSheet({open,user,clinic,metrics,now,onClose,onClinic}){
   const[unit,setUnit]=useState("lb");
   useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
   useEffect(()=>{if(user){setName(user.user_metadata?.name||"");setUnit((metrics?.unit||"lb"));}},[ user,metrics]);
-  if(!render||!user)return null;
+  if(!render)return null;
   const initials=(name||user.email||"?").split(" ").map(p=>p[0]).join("").slice(0,2).toUpperCase();
   const memberSince=user.created_at?new Date(user.created_at).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}):"—";
   const saveName=async()=>{
@@ -1095,10 +1093,13 @@ function renderTimeline(items,nowMin,now,nextId,onLog,onPickSite,onRemove,onDeta
 function NextRestInfo({peptides,now,logs}){let best=null;peptides.forEach(p=>{const dt=nextDoseAt(p,now,logs);if(dt&&(!best||dt<best.dt))best={p,dt};});if(!best)return <div className="pos-empty-s">Nothing scheduled. Enjoy the rest day.</div>;return <div className="pos-empty-s">Nothing due today. Next up: <b style={{color:best.p.color}}>{best.p.name}</b> in {fmtGap(best.dt-now)}.</div>;}
 
 /* ---------- STACKS ---------- */
-function Stacks({peptides,logs,metrics,now,clinic,onEdit,onAdd,onBrowse,onClinic,onJourney,onHistory}){
+function Stacks({peptides,logs,metrics,now,clinic,onEdit,onAdd,onBrowse,onClinic,onJourney,onHistory,ai,loading,error,stale,onRun}){
+  const[mode,setMode]=useState("stacks");
   const taken=(id,d)=>!!logs[`${id}__${dateKey(d)}`];
   return(<>
     <div className="pos-head"><div><div className="pos-h-eyebrow">{peptides.length} active</div><div className="pos-title">Stacks</div></div><div className="pos-head-actions"><button className="pos-iconbtn" onClick={onClinic} aria-label="Clinic"><Stethoscope size={18}/></button><button className="pos-iconbtn" onClick={onBrowse} aria-label="Browse protocols"><BookOpen size={18}/></button><button className="pos-iconbtn" onClick={onAdd} aria-label="Add"><Plus size={21}/></button></div></div>
+    <div className="pos-mini-tabs" style={{padding:"0 18px",marginBottom:12}}><button className={mode==="stacks"?"active":""} onClick={()=>setMode("stacks")}>Your Stacks</button><button className={mode==="pairs"?"active":""} onClick={()=>setMode("pairs")}>Pairings</button></div>
+    {mode==="stacks"&&<>
     {clinic&&<ClinicBanner clinic={clinic} onManage={onClinic}/>}
     {peptides.length===0?(<div className="pos-empty"><div className="pos-empty-ic"><Layers size={32}/></div><div className="pos-empty-t">Build your stack</div><div className="pos-empty-s">Start from a ready-made protocol, or add your peptides one by one.</div><button className="pos-cta" onClick={onBrowse} style={{display:"inline-flex",alignItems:"center",gap:8}}><Wand2 size={17}/>Start from a protocol</button><div style={{marginTop:14}}><button onClick={onAdd} style={{background:"none",border:"none",color:"var(--accent)",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>or add manually</button></div></div>
     ):peptides.map(p=>{
@@ -1129,6 +1130,8 @@ function Stacks({peptides,logs,metrics,now,clinic,onEdit,onAdd,onBrowse,onClinic
         </div>);
     })}
     {peptides.length>0&&<button onClick={onBrowse} style={{width:"100%",border:"1px dashed var(--line-2)",background:"var(--surface-2)",borderRadius:16,padding:"15px",color:"var(--accent)",fontSize:14.5,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:2}}><BookOpen size={16}/>Browse protocols</button>}
+    </>}
+    {mode==="pairs"&&<Pairings peptides={peptides} ai={ai} loading={loading} error={error} stale={stale} onRun={onRun} onAdd={onAdd}/>}
   </>);
 }
 
