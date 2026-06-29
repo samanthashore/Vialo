@@ -14,9 +14,64 @@
     <link rel="apple-touch-icon" href="/pyn-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>PYN</title>
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        background: linear-gradient(135deg, #fdf9f0 0%, #f3efe6 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.8s ease-out 1.5s;
+      }
+      #splash.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+      }
+      #splash-logo {
+        width: 80px;
+        height: 80px;
+        animation: splash-bounce 1.2s ease-in-out infinite;
+      }
+      #splash-text {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 0.24em;
+        color: #20211e;
+        text-align: center;
+      }
+      @keyframes splash-bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-12px); }
+      }
+    </style>
   </head>
   <body>
+    <div id="splash">
+      <div id="splash-content">
+        <svg id="splash-logo" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <rect width="1024" height="1024" rx="228" fill="#f0dd9c"/>
+          <path d="M512 751 C705 489 671 228 512 216 C353 228 319 489 512 751 Z" fill="#20211e"/>
+        </svg>
+        <div id="splash-text">PYN</div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      window.hideSplash = () => {
+        const splash = document.getElementById('splash');
+        if (splash) splash.classList.add('hidden');
+      };
+      setTimeout(() => window.hideSplash(), 2500);
+    </script>
   </body>
 </html>
