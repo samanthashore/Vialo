@@ -65,9 +65,12 @@ export default function AuthGate() {
   useEffect(() => {
     if (!supabaseConfigured) { setChecking(false); return; }
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+      setSession(data?.session || null);
       setChecking(false);
-    }).catch(() => setChecking(false));
+    }).catch((err) => {
+      console.error("Session restore failed:", err?.message || err);
+      setChecking(false);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
