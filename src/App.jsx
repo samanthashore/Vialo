@@ -791,6 +791,8 @@ export default function App(){
   };
   const addWeight=(v)=>setMetrics(m=>({...m,entries:{...m.entries,[dateKey(now)]:v}}));
   const setUnit=(u)=>setMetrics(m=>({...m,unit:u}));
+  const setNotifications=(on)=>setMetrics(m=>({...m,notificationsOn:on}));
+  const setReminderTime=(t)=>setMetrics(m=>({...m,reminderTime:t}));
   const addEnergy=(v)=>setMetrics(m=>({...m,energy:{...(m.energy||{}),[dateKey(now)]:v}}));
   const addRecovery=(field,v)=>setMetrics(m=>({...m,recovery:{...(m.recovery||{}),[dateKey(now)]:{...((m.recovery||{})[dateKey(now)]||{}),[field]:v}}}));
   const addLab=(e)=>setMetrics(m=>({...m,labs:[...(m.labs||[]),e]}));
@@ -870,7 +872,7 @@ export default function App(){
       <SitePicker open={!!pickSite} peptide={pickSite} metrics={metrics} now={now} onPick={(sid)=>{setDoseSite(pickSite.id,sid);setPickSite(null);}} onClose={()=>setPickSite(null)}/>
       <EditSheet key={editing==="new"?"new":editing?.id||"closed"} open={!!editing} peptide={editing==="new"?null:editing} onClose={()=>setEditing(null)} onSave={savePeptide} onDelete={deletePeptide} onHistory={p=>setHistoryPeptide(p)}/>
       <HistorySheet open={!!historyPeptide} peptide={historyPeptide} logs={logs} now={now} onToggle={toggleLogOn} onClose={()=>setHistoryPeptide(null)}/>
-      <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} onClose={()=>setShowAccount(false)} now={now} onClinic={()=>{setShowAccount(false);setShowClinic(true);}}/>
+      <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} onClose={()=>setShowAccount(false)} now={now} onClinic={()=>{setShowAccount(false);setShowClinic(true);}} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime}/>
       <DoseDetailSheet open={!!doseDetail} dose={doseDetail} metrics={metrics} now={now} onRemove={(pid)=>{removeFromToday(pid);setDoseDetail(null);}} onClose={()=>setDoseDetail(null)}/>
 
 
@@ -921,17 +923,14 @@ function DoseDetailSheet({open,dose,metrics,now,onRemove,onClose}){
 }
 
 /* ---------- ACCOUNT SHEET ---------- */
-function AccountSheet({open,user,clinic,metrics,now,onClose,onClinic}){
+function AccountSheet({open,user,clinic,metrics,now,onClose,onClinic,onSetUnit,onSetNotifications,onSetReminderTime}){
   const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
   const[editName,setEditName]=useState(false),[name,setName]=useState("");
   const[nameLoading,setNameLoading]=useState(false);
   const[deleteConfirm,setDeleteConfirm]=useState(false);
   const[deleteBusy,setDeleteBusy]=useState(false);
-  const[reminderTime,setReminderTime]=useState("09:00");
-  const[notifyOn,setNotifyOn]=useState(true);
-  const[unit,setUnit]=useState("lb");
   useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
-  useEffect(()=>{if(user){setName(user.user_metadata?.name||"");setUnit((metrics?.unit||"lb"));}},[ user,metrics]);
+  useEffect(()=>{if(user){setName(user.user_metadata?.name||"");}},[user]);
   if(!render)return null;
   const initials=(name||user.email||"?").split(" ").map(p=>p[0]).join("").slice(0,2).toUpperCase();
   const memberSince=user.created_at?new Date(user.created_at).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}):"—";
@@ -955,6 +954,16 @@ function AccountSheet({open,user,clinic,metrics,now,onClose,onClinic}){
     }
   };
   const signOut=async()=>{try{await supabase.auth.signOut();}catch(_){}};
+  const exportData=()=>{
+    const data={peptides:window.storage?.peptides||[],logs:window.storage?.logs||{},metrics:window.storage?.metrics||{},exportedAt:new Date().toISOString()};
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=`pyn-export-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   return(<>
     <div className={`pos-ov ${anim?"open":""}`} onClick={onClose}/>
     <div className={`pos-sheet ${anim?"open":""}`}>
@@ -995,14 +1004,14 @@ function AccountSheet({open,user,clinic,metrics,now,onClose,onClinic}){
         <div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}>
           <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:10}}>Preferences</div>
           <div style={{background:"var(--surface)",borderRadius:12,overflow:"hidden"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",borderBottom:"1px solid var(--line)"}}><span style={{fontSize:14,fontWeight:600}}>Notifications</span><button className={`pos-toggle ${notifyOn?"on":""}`} onClick={()=>setNotifyOn(!notifyOn)} style={{cursor:"pointer"}}/></div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",borderBottom:"1px solid var(--line)"}}><span style={{fontSize:14,fontWeight:600}}>Units</span><select value={unit} onChange={e=>setUnit(e.target.value)} style={{border:"1px solid var(--line-2)",borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"var(--sans)",cursor:"pointer",outline:"none"}}><option>lb</option><option>kg</option></select></div>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px"}}><span style={{fontSize:14,fontWeight:600}}>Reminder</span><input type="time" value={reminderTime} onChange={e=>setReminderTime(e.target.value)} style={{border:"1px solid var(--line-2)",borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"var(--sans)",cursor:"pointer",outline:"none"}}/></div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",borderBottom:"1px solid var(--line)"}}><span style={{fontSize:14,fontWeight:600}}>Notifications</span><button className={`pos-toggle ${metrics?.notificationsOn?"on":""}`} onClick={()=>onSetNotifications?.(!metrics?.notificationsOn)} style={{cursor:"pointer"}}/></div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",borderBottom:"1px solid var(--line)"}}><span style={{fontSize:14,fontWeight:600}}>Units</span><select value={metrics?.unit||"lb"} onChange={e=>onSetUnit?.(e.target.value)} style={{border:"1px solid var(--line-2)",borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"var(--sans)",cursor:"pointer",outline:"none"}}><option>lb</option><option>kg</option></select></div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px"}}><span style={{fontSize:14,fontWeight:600}}>Reminder</span><input type="time" value={metrics?.reminderTime||"09:00"} onChange={e=>onSetReminderTime?.(e.target.value)} style={{border:"1px solid var(--line-2)",borderRadius:6,padding:"6px 10px",fontSize:13,fontFamily:"var(--sans)",cursor:"pointer",outline:"none"}}/></div>
           </div>
         </div>
         <div style={{borderTop:"1px solid var(--line)",paddingTop:16}}>
           <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:10}}>Data &amp; privacy</div>
-          <button style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",background:"var(--surface)",border:"1px solid var(--line)",borderRadius:12,cursor:"pointer",marginBottom:8,fontSize:14,fontWeight:600,fontFamily:"var(--sans)"}}><span>Export my data</span><ExternalLink size={15}/></button>
+          <button onClick={exportData} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 15px",background:"var(--surface)",border:"1px solid var(--line)",borderRadius:12,cursor:"pointer",marginBottom:8,fontSize:14,fontWeight:600,fontFamily:"var(--sans)"}}><span>Export my data</span><ExternalLink size={15}/></button>
           {deleteConfirm?<>
             <div style={{background:"var(--red-soft)",border:"1px solid var(--red)",borderRadius:12,padding:"13px 15px",marginBottom:8}}><div style={{fontSize:14,fontWeight:700,color:"var(--red)",marginBottom:10}}>Delete account?</div><div style={{fontSize:12,color:"var(--ink-2)",marginBottom:12,lineHeight:1.5}}>This will permanently delete your account and all your peptide logs, streaks, and settings. This cannot be undone.</div><div style={{display:"flex",gap:8}}><button onClick={deleteAccount} disabled={deleteBusy} style={{flex:1,background:"var(--red)",color:"#fff",border:"none",borderRadius:8,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{deleteBusy?"Deleting…":"Delete"}</button><button onClick={()=>setDeleteConfirm(false)} style={{flex:1,background:"var(--surface)",border:"1px solid var(--line)",borderRadius:8,padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>Cancel</button></div></div>
           </>:<button onClick={()=>setDeleteConfirm(true)} style={{width:"100%",padding:"13px 15px",background:"var(--surface-2)",border:"1px solid var(--line-2)",borderRadius:12,cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"var(--sans)",color:"var(--red)"}}>Delete my account</button>}
