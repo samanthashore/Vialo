@@ -854,7 +854,9 @@ export default function App(){
       <SitePicker open={!!pickSite} peptide={pickSite} metrics={metrics} now={now} onPick={(sid)=>{setDoseSite(pickSite.id,sid);setPickSite(null);}} onClose={()=>setPickSite(null)}/>
       <EditSheet key={editing==="new"?"new":editing?.id||"closed"} open={!!editing} peptide={editing==="new"?null:editing} onClose={()=>setEditing(null)} onSave={savePeptide} onDelete={deletePeptide} onHistory={p=>setHistoryPeptide(p)}/>
       <HistorySheet open={!!historyPeptide} peptide={historyPeptide} logs={logs} now={now} onToggle={toggleLogOn} onClose={()=>setHistoryPeptide(null)}/>
-      <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} onClose={()=>setShowAccount(false)} now={now}/>
+      <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} onClose={()=>setShowAccount(false)} now={now} onClinic={()=>{setShowAccount(false);setShowClinic(true);}}/>
+
+
     </div>
   );
 }
@@ -862,7 +864,7 @@ export default function App(){
 function Tab({icon:Icon,label,active,onClick}){return(<button className={`pos-tab ${active?"active":""}`} onClick={onClick}><Icon size={21} strokeWidth={active?2.4:2}/><span className="pos-tab-lbl">{label}</span></button>);}
 
 /* ---------- ACCOUNT SHEET ---------- */
-function AccountSheet({open,user,clinic,metrics,now,onClose}){
+function AccountSheet({open,user,clinic,metrics,now,onClose,onClinic}){
   const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
   const[editName,setEditName]=useState(false),[name,setName]=useState("");
   const[nameLoading,setNameLoading]=useState(false);
@@ -921,7 +923,17 @@ function AccountSheet({open,user,clinic,metrics,now,onClose}){
         </div>
         {clinic&&<div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}>
           <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:8}}>Connected care</div>
-          <div style={{background:"var(--surface-2)",borderRadius:14,padding:"14px",border:"1px solid var(--line)"}}><div style={{fontSize:14,fontWeight:740,color:"#2f5d5a"}}>{clinic.name}</div><div style={{fontSize:12,color:"var(--ink-2)",marginTop:4}}>Status: Connected</div></div>
+          <div style={{background:"linear-gradient(135deg, #2f5d5a22, #e3ece922)",borderRadius:14,padding:"16px",border:"1px solid #2f5d5a33"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+              <div style={{width:40,height:40,borderRadius:10,background:"#2f5d5a",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{clinic.emoji}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:15,fontWeight:740,color:"#2f5d5a"}}>{clinic.name}</div>
+                <div style={{fontSize:12,color:"var(--ink-2)",marginTop:2}}>Connected · {clinic.tagline||"Your protocol, beautifully managed"}</div>
+              </div>
+            </div>
+            <a href={clinic.storeUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,width:"100%",padding:"10px 14px",background:"#2f5d5a",color:"#fff",textDecoration:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",marginBottom:8}}><ExternalLink size={14}/>Shop &amp; reorder</a>
+            <button onClick={()=>{onClose();onClinic?.();}} style={{width:"100%",padding:"10px 14px",background:"var(--surface-2)",border:"1px solid var(--line)",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",color:"#2f5d5a",fontFamily:"var(--sans)"}}>Manage clinic</button>
+          </div>
         </div>}
         <div style={{borderTop:"1px solid var(--line)",paddingTop:16,marginBottom:14}}>
           <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:10}}>Preferences</div>
@@ -971,7 +983,6 @@ function Today({now,due,done,taken,onLog,onRemove,logAll,logs,peptides,metrics,c
       <div><div className="pos-h-eyebrow">{dateStr}</div><div className="pos-title">Today</div></div>
       <div className="pos-head-actions">{user&&<button className="pos-iconbtn" onClick={onAccount} aria-label="Account" style={{fontSize:12,fontWeight:800,color:"var(--accent)"}}>{(user.user_metadata?.name||user.email||"?").split(" ")[0].slice(0,2).toUpperCase()}</button>}<button className="pos-iconbtn" onClick={onShare} aria-label="Share"><Share2 size={18}/></button><button className="pos-iconbtn" onClick={onAdd} aria-label="Add"><Plus size={21}/></button></div>
     </div>
-    {clinic&&<ClinicBanner clinic={clinic} onManage={onClinic}/>}
     <div className="pos-hero">
       <div className="pos-ringwrap"><StatusRing items={items.map(i=>({color:i.color,done:i._taken}))}/>
         <div className="pos-ring-center">{due.length===0?<><div className="pos-ring-num" style={{fontSize:25}}>Rest day</div><div className="pos-eyebrow pos-ring-lbl">no doses</div></>:<><div className="pos-ring-num tnum">{done}<small>/{due.length}</small></div><div className="pos-eyebrow pos-ring-lbl">{allDone?"all done":"doses logged"}</div></>}</div>
