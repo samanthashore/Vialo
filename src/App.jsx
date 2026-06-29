@@ -712,6 +712,7 @@ export default function App(){
   const[undoMsg,setUndoMsg]=useState(null);
   const[undoPid,setUndoPid]=useState(null);
   const[doseDetail,setDoseDetail]=useState(null);
+  const[onboarding,setOnboarding]=useState(null);
   const wasComplete=useRef(false);
   const now=new Date(clock);
 
@@ -728,6 +729,7 @@ export default function App(){
       try{const a=await window.storage.get("ai_pairings");if(a?.value)setAi(JSON.parse(a.value));}catch(e){}
       try{const c=await window.storage.get("clinic_id");if(c?.value)setClinicId(JSON.parse(c.value));}catch(e){}
       clearTimeout(timeout);
+      if(!have)setOnboarding("step1");
       setLoaded(true);
       window.hideSplash?.();
     }catch(e){
@@ -876,7 +878,7 @@ export default function App(){
       <HistorySheet open={!!historyPeptide} peptide={historyPeptide} logs={logs} now={now} onToggle={toggleLogOn} onClose={()=>setHistoryPeptide(null)}/>
       <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} onClose={()=>setShowAccount(false)} now={now} onClinic={()=>{setShowAccount(false);setShowClinic(true);}} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime}/>
       <DoseDetailSheet open={!!doseDetail} dose={doseDetail} metrics={metrics} now={now} onRemove={(pid)=>{removeFromToday(pid);setDoseDetail(null);}} onClose={()=>setDoseDetail(null)}/>
-
+      <Onboarding step={onboarding} onComplete={()=>setOnboarding(null)} onAdd={()=>{setOnboarding(null);setEditing("new");}} onClinic={()=>{setOnboarding(null);setShowClinic(true);}}/>
 
     </div>
   );
@@ -1821,6 +1823,24 @@ function EditSheet({open,peptide,onClose,onSave,onDelete,onHistory}){
         </>}
         <div className="pos-hint">{reconOn&&"The draw amount shows on your Today timeline so you never recalc at injection time. "}{type==="everyN"&&`“Every ${n} days” counts from the start date. `}{cycleOn&&`Cycle measured from the start date. `}{supplyOn&&`Bump “vials in stock” when you restock.`}</div>
         {!isNew&&<button className="pos-del" onClick={()=>onDelete(peptide.id)}><Trash2 size={15} style={{verticalAlign:"-3px",marginRight:6}}/>Delete peptide</button>}
+      </div>
+    </div>
+  </>);
+}
+
+function Onboarding({step,onComplete,onAdd,onClinic}){
+  if(!step)return null;
+  return(<>
+    <div style={{position:"fixed",inset:0,background:"rgba(20,28,46,0.5)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}/>
+    <div style={{position:"fixed",inset:0,zIndex:101,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"var(--bg)",borderRadius:24,padding:"32px 24px",maxWidth:360,width:"100%",boxShadow:"0 20px 60px rgba(20,28,46,0.2)"}}>
+        {step==="step1"&&<>
+          <div style={{fontSize:32,marginBottom:12}}>👋</div>
+          <div style={{fontSize:22,fontWeight:780,marginBottom:8,color:"var(--ink)"}}>Welcome to PYN</div>
+          <div style={{fontSize:15,color:"var(--ink-2)",lineHeight:1.5,marginBottom:24}}>Let's set up your first peptide so you can start tracking your protocol.</div>
+          <button onClick={onAdd} style={{width:"100%",padding:"14px",background:"var(--ink)",color:"#fff",border:"none",borderRadius:16,fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:12,fontFamily:"var(--sans)"}}>Add my first peptide</button>
+          <button onClick={onComplete} style={{width:"100%",padding:"14px",background:"var(--surface-2)",border:"1px solid var(--line)",borderRadius:16,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Skip for now</button>
+        </>}
       </div>
     </div>
   </>);
