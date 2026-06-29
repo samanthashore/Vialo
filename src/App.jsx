@@ -723,13 +723,16 @@ export default function App(){
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),30000);return()=>clearInterval(id);},[]);
   useEffect(()=>{(async()=>{
     let have=false;
-    try{const p=await window.storage.get("peptides");if(p?.value){const a=JSON.parse(p.value);setPeptides(a);have=Array.isArray(a)&&a.length>0;}}catch(e){}
-    if(!have)setPeptides(SEED(dateKey(new Date())));
-    try{const l=await window.storage.get("logs");if(l?.value)setLogs(JSON.parse(l.value));}catch(e){}
-    try{const m=await window.storage.get("metrics");if(m?.value)setMetrics(x=>({...x,...JSON.parse(m.value)}));}catch(e){}
-    try{const a=await window.storage.get("ai_pairings");if(a?.value)setAi(JSON.parse(a.value));}catch(e){}
-    try{const c=await window.storage.get("clinic_id");if(c?.value)setClinicId(JSON.parse(c.value));}catch(e){}
-    setLoaded(true);
+    const timeout=setTimeout(()=>setLoaded(true),3000);
+    try{
+      try{const p=await window.storage.get("peptides");if(p?.value){const a=JSON.parse(p.value);setPeptides(a);have=Array.isArray(a)&&a.length>0;}}catch(e){}
+      if(!have)setPeptides(SEED(dateKey(new Date())));
+      try{const l=await window.storage.get("logs");if(l?.value)setLogs(JSON.parse(l.value));}catch(e){}
+      try{const m=await window.storage.get("metrics");if(m?.value)setMetrics(x=>({...x,...JSON.parse(m.value)}));}catch(e){}
+      try{const a=await window.storage.get("ai_pairings");if(a?.value)setAi(JSON.parse(a.value));}catch(e){}
+      try{const c=await window.storage.get("clinic_id");if(c?.value)setClinicId(JSON.parse(c.value));}catch(e){}
+      clearTimeout(timeout);
+    }finally{setLoaded(true);}
   })();},[]);
   useEffect(()=>{if(loaded)window.storage.set("peptides",JSON.stringify(peptides),false).catch(()=>{});},[peptides,loaded]);
   useEffect(()=>{if(loaded)window.storage.set("logs",JSON.stringify(logs),false).catch(()=>{});},[logs,loaded]);
