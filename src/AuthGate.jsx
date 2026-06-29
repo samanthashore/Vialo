@@ -161,6 +161,16 @@ function AuthForm() {
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
 
+  const friendlyError = (msg) => {
+    if (!msg) return "Something went wrong. Please try again.";
+    if (msg.includes("already registered")) return "Email already in use. Sign in instead, or reset your password.";
+    if (msg.includes("Invalid login credentials")) return "Wrong email or password. Try again.";
+    if (msg.includes("Email not confirmed")) return "Check your email and confirm your account before signing in.";
+    if (msg.includes("Email link is invalid")) return "Your confirmation link expired. Sign up again.";
+    if (msg.includes("password")) return "Password must be at least 6 characters.";
+    return msg;
+  };
+
   const submit = async () => {
     setErr(""); setOk("");
     if (!email || !pw) { setErr("Enter your email and password."); return; }
@@ -169,13 +179,13 @@ function AuthForm() {
     try {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-        if (error) setErr(error.message);
+        if (error) setErr(friendlyError(error.message));
       } else {
         const { data, error } = await supabase.auth.signUp({ email, password: pw });
-        if (error) setErr(error.message);
-        else if (!data.session) setOk("Check your email to confirm your account, then sign in.");
+        if (error) setErr(friendlyError(error.message));
+        else if (!data.session) setOk("✓ Check your email to confirm your account, then sign in.");
       }
-    } catch (e) { setErr(String(e?.message || e)); }
+    } catch (e) { setErr(friendlyError(String(e?.message || e))); }
     setBusy(false);
   };
 
@@ -183,7 +193,7 @@ function AuthForm() {
     setErr("");
     try {
       await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
-    } catch (e) { setErr(String(e?.message || e)); }
+    } catch (e) { setErr(friendlyError(String(e?.message || e))); }
   };
 
   return (
