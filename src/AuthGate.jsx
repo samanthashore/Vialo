@@ -60,7 +60,7 @@ function AppleMark() {
 export default function AuthGate() {
   const [session, setSession] = useState(null);
   const [checking, setChecking] = useState(true);
-  const [ready, setReady] = useState(false); // storage user set + migration done
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!supabaseConfigured) { setChecking(false); return; }
@@ -93,7 +93,7 @@ export default function AuthGate() {
         <div className="va-card">
           <div className="va-brand"><div className="va-logo"><DropletSVG /></div><div className="va-name">PYN</div><div className="va-tagline">Your Protocol, Handled</div></div>
           <div className="va-msg err" style={{ marginTop: 16 }}>
-            Accounts aren’t configured yet. Add <b>VITE_SUPABASE_URL</b> and <b>VITE_SUPABASE_ANON_KEY</b> to your
+            Accounts aren't configured yet. Add <b>VITE_SUPABASE_URL</b> and <b>VITE_SUPABASE_ANON_KEY</b> to your
             environment variables, then redeploy. (See the README.)
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function AuthGate() {
 }
 
 function AuthForm() {
-  const [mode, setMode] = useState("signin"); // signin | signup
+  const [mode, setMode] = useState("signin");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);

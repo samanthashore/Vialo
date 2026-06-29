@@ -22,8 +22,8 @@ export async function migrateLocalData(userId) {
     if (data && data.length) return; // account already has data
     const rows = [];
     for (const k of Object.keys(localStorage)) {
-      if (k.startsWith("vialo:")) {
-        rows.push({ user_id: userId, key: k.slice(6), value: localStorage.getItem(k) });
+      if (k.startsWith("pyn:")) {
+        rows.push({ user_id: userId, key: k.slice(4), value: localStorage.getItem(k) });
       }
     }
     if (rows.length) {
