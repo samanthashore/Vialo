@@ -17,7 +17,7 @@ export const supabase = supabaseConfigured
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        flowType: "pkce"
+        flowType: "implicit"
       },
       global: {
         headers: {
@@ -27,11 +27,11 @@ export const supabase = supabaseConfigured
           try {
             const response = await fetch(url, options);
             if (!response.ok) {
-              console.error("🚨 Supabase fetch error:", response.status, response.statusText);
+              console.error("🚨 Supabase fetch error:", response.status, response.statusText, url);
             }
             return response;
           } catch (error) {
-            console.error("🚨 Supabase network error:", error.message);
+            console.error("🚨 Supabase network error:", error.message, url);
             throw error;
           }
         }
