@@ -717,6 +717,7 @@ export default function App(){
   const now=new Date(clock);
 
   useEffect(()=>{let on=true;supabase?.auth?.getUser().then(({data})=>{if(on)setUser(data?.user||null);});return()=>{on=false;};},[]);
+  useEffect(()=>{if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}},[]);
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),30000);return()=>clearInterval(id);},[]);
   useEffect(()=>{(async()=>{
     let have=false;
@@ -799,6 +800,36 @@ export default function App(){
   const setReminderTime=(t)=>setMetrics(m=>({...m,reminderTime:t}));
   const addEnergy=(v)=>setMetrics(m=>({...m,energy:{...(m.energy||{}),[dateKey(now)]:v}}));
   const addRecovery=(field,v)=>setMetrics(m=>({...m,recovery:{...(m.recovery||{}),[dateKey(now)]:{...((m.recovery||{})[dateKey(now)]||{}),[field]:v}}}));
+
+  const requestNotificationPermission=async()=>{
+    if(!('Notification'in window))return;
+    if(Notification.permission==='granted')return;
+    if(Notification.permission!=='denied'){
+      try{await Notification.requestPermission();}catch(e){}
+    }
+  };
+
+  const scheduleNotifications=()=>{
+    if(!metrics?.notificationsOn||!('Notification'in window)||Notification.permission!=='granted')return;
+    if(!navigator.serviceWorker?.controller)return;
+    peptides.forEach(p=>{
+      if(!isDue(p,now,logs))return;
+      const time=p.time||'09:00';
+      const [h,m]=time.split(':').map(Number);
+      const notifTime=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0,0);
+      if(notifTime.getTime()>now.getTime()){
+        navigator.serviceWorker.controller.postMessage({
+          type:'SCHEDULE_NOTIFICATION',
+          title:`Time for ${p.name}`,
+          body:`Log your ${p.dose||p.name} dose`,
+          peptideName:p.id
+        });
+      }
+    });
+  };
+
+  useEffect(()=>{requestNotificationPermission();},[]);
+  useEffect(()=>{scheduleNotifications();},[peptides,metrics?.notificationsOn,now]);
   const addLab=(e)=>setMetrics(m=>({...m,labs:[...(m.labs||[]),e]}));
   const deleteLab=(id)=>setMetrics(m=>({...m,labs:(m.labs||[]).filter(l=>l.id!==id)}));
 
