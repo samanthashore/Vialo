@@ -92,16 +92,27 @@ export default function AuthGate() {
     return;
 
     // Original auth code (commented out for demo mode)
+    // Uncomment below to restore real Supabase authentication
     /*
+    const authTimeout = setTimeout(() => {
+      console.error("Auth check timeout - proceeding without session");
+      setChecking(false);
+    }, 4000);
+
     supabase.auth.getSession().then(({ data }) => {
+      clearTimeout(authTimeout);
       setSession(data?.session || null);
       setChecking(false);
     }).catch((err) => {
+      clearTimeout(authTimeout);
       console.error("Session restore failed:", err?.message || err);
       setChecking(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      clearTimeout(authTimeout);
+      sub?.subscription?.unsubscribe();
+    };
     */
   }, []);
 
