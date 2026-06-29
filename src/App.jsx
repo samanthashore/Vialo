@@ -1457,10 +1457,10 @@ function ProtocolLibrary({open,clinic,onClose,onApply,peptides}){
 
 /* ---------- clinic / white-label ---------- */
 function ClinicBanner({clinic,onManage}){
-  return(<div className="pos-clinic-banner" onClick={onManage}>
-    <div className="pos-clinic-logo">{clinic.emoji}</div>
-    <div style={{flex:1,minWidth:0}}><div className="pos-clinic-name">{clinic.name}</div><div className="pos-clinic-sub">Connected · tap to manage</div></div>
-    <ChevronRight size={17} style={{opacity:.6}}/>
+  return(<div style={{padding:"12px 6px",display:"flex",alignItems:"center",gap:8,fontSize:13,color:"var(--ink-2)",cursor:"pointer"}} onClick={onManage}>
+    <span style={{fontSize:16}}>{clinic.emoji}</span>
+    <span style={{flex:1}}><span style={{fontWeight:600,color:"var(--ink)"}}>Connected:</span> {clinic.name}</span>
+    <ChevronRight size={15} style={{opacity:.5}}/>
   </div>);
 }
 function ClinicSheet({open,clinic,peptides,onConnect,onDisconnect,onAddProduct,onOpenProvider,onClose}){
