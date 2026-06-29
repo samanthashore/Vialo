@@ -713,6 +713,8 @@ export default function App(){
   const[pickSite,setPickSite]=useState(null);
   const[user,setUser]=useState(null);
   const[showAccount,setShowAccount]=useState(false);
+  const[undoMsg,setUndoMsg]=useState(null);
+  const[undoPid,setUndoPid]=useState(null);
   const wasComplete=useRef(false);
   const now=new Date(clock);
 
@@ -747,6 +749,10 @@ export default function App(){
   const setDoseSite=(pid,sid)=>{
     setMetrics(m=>({...m,doseSites:{...(m.doseSites||{}),[`${pid}__${dateKey(now)}`]:sid}}));
     setLogs(prev=>{const k=lk(pid,now);if(prev[k])return prev;return{...prev,[k]:new Date().toISOString()};});
+    const p=peptides.find(x=>x.id===pid);
+    setUndoPid(pid);
+    setUndoMsg(`${p?.name} logged · tap to undo`);
+    setTimeout(()=>setUndoMsg(null),3000);
   };
   const toggleLogOn=(pid,dk)=>{
     const key=`${pid}__${dk}`, p=peptides.find(x=>x.id===pid), was=!!logs[key];
@@ -762,11 +768,18 @@ export default function App(){
 
   const dueToday=useMemo(()=>peptides.filter(p=>isDue(p,now,logs)&&!((metrics.skips||{})[`${p.id}__${dateKey(now)}`])).sort((a,b)=>tmin(a.time)-tmin(b.time)),[peptides,clock,logs,metrics]);
   const doneToday=dueToday.filter(p=>taken(p.id,now)).length;
+  const pendingToday=dueToday.filter(p=>!taken(p.id,now));
   const completeAll=dueToday.length>0&&doneToday===dueToday.length;
   useEffect(()=>{
     if(completeAll&&!wasComplete.current){setCelebrate(true);wasComplete.current=true;const t=setTimeout(()=>setCelebrate(false),2600);return()=>clearTimeout(t);}
     if(!completeAll)wasComplete.current=false;
   },[completeAll]);
+  const undoDose=()=>{
+    if(!undoPid)return;
+    setLogs(prev=>{const c={...prev};delete c[lk(undoPid,now)];return c;});
+    setMetrics(m=>{const ds={...(m.doseSites||{})};delete ds[`${undoPid}__${dateKey(now)}`];return{...m,doseSites:ds};});
+    setUndoMsg(null);
+  };
 
   const logAll=()=>{
     setLogs(prev=>{const c={...prev};dueToday.forEach(p=>{if(!c[lk(p.id,now)])c[lk(p.id,now)]=new Date().toISOString();});return c;});
@@ -832,7 +845,7 @@ export default function App(){
     <div className="pos-root" style={clinicTheme}>
       <style>{CSS}</style>
       <div className="pos-scroll">
-        {tab==="today"&&<Today now={now} due={dueToday} done={doneToday} taken={taken} onLog={logDose} onRemove={removeFromToday} logAll={logAll} logs={logs} peptides={peptides} metrics={metrics} clinic={clinic} addEnergy={addEnergy} onPickSite={p=>setPickSite(p)} onClinic={()=>setShowClinic(true)} onAdd={()=>setEditing("new")} onShare={()=>setShare(true)} user={user} onAccount={()=>setShowAccount(true)}/>}
+        {tab==="today"&&<Today now={now} due={dueToday} done={doneToday} taken={taken} pending={pendingToday} onLog={logDose} onRemove={removeFromToday} logAll={logAll} logs={logs} peptides={peptides} metrics={metrics} clinic={clinic} addEnergy={addEnergy} onPickSite={p=>setPickSite(p)} onClinic={()=>setShowClinic(true)} onAdd={()=>setEditing("new")} onShare={()=>setShare(true)} user={user} onAccount={()=>setShowAccount(true)} undoMsg={undoMsg} onUndo={undoDose}/>}
         {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)}/>}
         {tab==="tools"&&<Tools peptides={peptides} logs={logs} metrics={metrics} now={now}/>}
         {tab==="pair"&&<Pairings peptides={peptides} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack} onAdd={()=>setEditing("new")}/>}
@@ -962,15 +975,15 @@ function Confetti(){
 }
 
 /* ---------- TODAY ---------- */
-function Today({now,due,done,taken,onLog,onRemove,logAll,logs,peptides,metrics,clinic,addEnergy,onPickSite,onClinic,onAdd,onShare,user,onAccount}){
+function Today({now,due,done,taken,pending,onLog,onRemove,logAll,logs,peptides,metrics,clinic,addEnergy,onPickSite,onClinic,onAdd,onShare,user,onAccount,undoMsg,onUndo}){
   const items=due.map(p=>{const rotate=p.rotate!==false;return{...p,_taken:taken(p.id,now),_min:tmin(p.time),_rotate:rotate,_site:rotate?(metrics?.doseSites||{})[`${p.id}__${dateKey(now)}`]:null,_suggest:rotate?suggestSite(peptideSiteMap(metrics,p.id),now).id:null};});
   const nowMin=now.getHours()*60+now.getMinutes();
   const todayEnergy=(metrics?.energy||{})[dateKey(now)];
   let nextId=null,nextLabel="";
-  const pending=items.filter(i=>!i._taken);
-  if(pending.length){
-    const overdue=pending.filter(i=>i._min<=nowMin).sort((a,b)=>a._min-b._min);
-    const upcoming=pending.filter(i=>i._min>nowMin).sort((a,b)=>a._min-b._min);
+  const pendingItems=items.filter(i=>!i._taken);
+  if(pendingItems.length){
+    const overdue=pendingItems.filter(i=>i._min<=nowMin).sort((a,b)=>a._min-b._min);
+    const upcoming=pendingItems.filter(i=>i._min>nowMin).sort((a,b)=>a._min-b._min);
     const t=overdue[0]||upcoming[0];nextId=t.id;
     if(overdue[0])nextLabel="now";else{const[h,m]=t.time.split(":").map(Number);const dt=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m);nextLabel=fmtGap(dt-now);}
   }
@@ -994,8 +1007,10 @@ function Today({now,due,done,taken,onLog,onRemove,logAll,logs,peptides,metrics,c
       </div>
     </div>
     {due.length>0&&<>
-      <div className="pos-sec"><div className="pos-eyebrow">Schedule</div>{pending.length>0?<button className="pos-logall" onClick={logAll}><CheckCheck size={14}/>Log all</button>:<div className="pos-sec-count tnum">{done}/{due.length} DONE</div>}</div>
-      <div className="pos-tl"><div className="pos-tl-rail"/>{renderTimeline(items,nowMin,now,nextId,onLog,onPickSite,onRemove)}</div>
+      {allDone?<div style={{textAlign:"center",padding:"32px 20px",background:"var(--surface-2)",borderRadius:18,margin:"18px 0"}}><div style={{fontSize:32,marginBottom:8}}>✨</div><div style={{fontSize:20,fontWeight:780,color:"var(--ink)",marginBottom:6}}>All done for today</div><div style={{fontSize:14,color:"var(--ink-2)"}}>Great work! You crushed it.</div></div>:<>
+        <div className="pos-sec"><div className="pos-eyebrow">Schedule</div>{pendingItems.length>0?<button className="pos-logall" onClick={logAll}><CheckCheck size={14}/>Log all</button>:<div className="pos-sec-count tnum">{done}/{due.length} DONE</div>}</div>
+        <div className="pos-tl"><div className="pos-tl-rail"/>{renderTimeline(items,nowMin,now,nextId,onLog,onPickSite,onRemove)}</div>
+      </>}
     </>}
     <div className="pos-sec"><div className="pos-eyebrow">Daily check-in</div>{todayEnergy&&<div className="pos-sec-count">Logged</div>}</div>
     <div className="pos-card" style={{padding:"16px 16px 18px"}}>
@@ -1003,6 +1018,7 @@ function Today({now,due,done,taken,onLog,onRemove,logAll,logs,peptides,metrics,c
       <div className="pos-energy">{[1,2,3,4,5].map(v=>(<button key={v} className={`pos-energy-btn ${todayEnergy===v?"sel":""}`} onClick={()=>addEnergy(v)}><span className="pos-energy-emoji">{["😴","😐","🙂","😃","⚡️"][v-1]}</span><span className="pos-energy-lbl">{["Low","Meh","Okay","Good","Peak"][v-1]}</span></button>))}</div>
     </div>
     {due.length===0&&<div style={{textAlign:"center",marginTop:6}}><NextRestInfo peptides={peptides} now={now} logs={logs}/><button className="pos-cta" style={{marginTop:16}} onClick={onAdd}>Add a peptide</button></div>}
+    {undoMsg&&<button onClick={onUndo} style={{position:"fixed",bottom:100,left:18,right:18,background:"var(--ink)",color:"#fff",border:"none",borderRadius:10,padding:"12px 16px",fontSize:13,fontWeight:700,cursor:"pointer",zIndex:40,fontFamily:"var(--sans)"}}>{undoMsg}</button>}
   </>);
 }
 function renderTimeline(items,nowMin,now,nextId,onLog,onPickSite,onRemove){
@@ -1011,10 +1027,10 @@ function renderTimeline(items,nowMin,now,nextId,onLog,onPickSite,onRemove){
     if(!placed&&it._min>nowMin){out.push(<div className="pos-now" key="now"><span className="pos-now-dot"/><span className="pos-now-lbl tnum">Now · {fmtTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`)}</span><span className="pos-now-line"/></div>);placed=true;}
     const isNext=it.id===nextId,overdue=!it._taken&&it._min<=nowMin,draw=calcDraw(it.recon);
     out.push(
-      <div className="pos-tl-row" key={it.id} onClick={()=>onLog(it.id)}>
+      <div className="pos-tl-row" key={it.id} onClick={()=>{if(!it._taken)onPickSite(it);}}>
         <div className={`pos-node ${it._taken?"done":""}`} style={it._taken?{background:it.color,borderColor:it.color}:isNext?{borderColor:it.color}:{}}>{it._taken?<Check className="ck" size={16} strokeWidth={3.2}/>:<span style={{width:7,height:7,borderRadius:"50%",background:isNext?it.color:"var(--ink-3)"}}/>}</div>
         <div className="pos-tl-card" style={isNext&&!it._taken?{borderColor:`${it.color}66`}:{}}>
-          <div className="pos-tl-top"><span className="pos-tl-name" style={{flex:1,color:it._taken?"var(--ink-2)":"var(--ink)"}}>{it.name}</span><span className="pos-tl-time tnum">{fmtTime(it.time)}</span>{onRemove&&<button className="pos-card-x" title="Remove from today" onClick={(e)=>{e.stopPropagation();onRemove(it.id);}}><X size={13}/></button>}</div>
+          <div className="pos-tl-top"><span className="pos-tl-name" style={{flex:1,color:it._taken?"var(--ink-2)":"var(--ink)"}}>{it.name}</span><span className="pos-tl-time tnum">{fmtTime(it.time)}</span></div>
           <div className="pos-tl-meta">{it.dose&&<span>{it.dose}</span>}{it.dose&&<span style={{opacity:.4}}>·</span>}<span>{scheduleLabel(it)}</span>
             {draw&&!draw.warn&&<span className="pos-draw"><Syringe size={11}/>Draw {draw.units<10?draw.units.toFixed(1):Math.round(draw.units)}u</span>}
             {draw&&draw.warn&&<span className="pos-draw" style={{background:"var(--amber-soft)",color:"var(--amber)"}}><AlertTriangle size={11}/>Check draw</span>}
