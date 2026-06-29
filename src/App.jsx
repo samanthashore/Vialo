@@ -721,7 +721,8 @@ export default function App(){
   useEffect(()=>{const id=setInterval(()=>setClock(Date.now()),30000);return()=>clearInterval(id);},[]);
   useEffect(()=>{(async()=>{
     let have=false;
-    const timeout=setTimeout(()=>{setLoaded(true);window.hideSplash?.();},4000);
+    let dataReady=false;
+    const timeout=setTimeout(()=>{if(!dataReady){setLoaded(true);window.hideSplash?.();}},1500);
     try{
       try{const p=await window.storage.get("peptides");if(p?.value){const a=JSON.parse(p.value);setPeptides(a);have=Array.isArray(a)&&a.length>0;}}catch(e){}
       if(!have)setPeptides(SEED(dateKey(new Date())));
@@ -730,11 +731,13 @@ export default function App(){
       try{const a=await window.storage.get("ai_pairings");if(a?.value)setAi(JSON.parse(a.value));}catch(e){}
       try{const c=await window.storage.get("clinic_id");if(c?.value)setClinicId(JSON.parse(c.value));}catch(e){}
       clearTimeout(timeout);
+      dataReady=true;
       if(!have)setOnboarding("step1");
       setLoaded(true);
       window.hideSplash?.();
     }catch(e){
       clearTimeout(timeout);
+      dataReady=true;
       setLoaded(true);
       window.hideSplash?.();
     }
