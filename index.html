@@ -18,13 +18,13 @@
       #splash {
         position: fixed;
         inset: 0;
-        background: linear-gradient(135deg, #fdf9f0 0%, #f3efe6 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #fdf9f0 50%, #f3efe6 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 9999;
         opacity: 1;
-        transition: opacity 0.8s ease-out 1.5s;
+        transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1) 1.8s;
       }
       #splash.hidden {
         opacity: 0;
@@ -34,36 +34,80 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
+        justify-content: center;
+        gap: 32px;
+        animation: splash-entrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       }
-      #splash-logo {
-        width: 80px;
-        height: 80px;
-        animation: splash-bounce 1.2s ease-in-out infinite;
+      #splash-droplet {
+        width: 100px;
+        height: 100px;
+        animation: splash-scale 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, splash-glow 2s ease-in-out infinite 0.8s;
+        opacity: 0;
+        transform: scale(0.3);
+      }
+      #splash-text-wrapper {
+        opacity: 0;
+        animation: splash-fade-in 0.8s ease-out 0.3s forwards;
       }
       #splash-text {
-        font-size: 28px;
-        font-weight: 700;
-        letter-spacing: 0.24em;
-        color: #20211e;
-        text-align: center;
+        width: 300px;
+        height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
-      @keyframes splash-bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-12px); }
+      @keyframes splash-entrance {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes splash-scale {
+        from {
+          opacity: 0;
+          transform: scale(0.3);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes splash-fade-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes splash-glow {
+        0%, 100% {
+          filter: drop-shadow(0 0 0px rgba(240, 218, 136, 0));
+        }
+        50% {
+          filter: drop-shadow(0 0 20px rgba(240, 218, 136, 0.4));
+        }
       }
     </style>
   </head>
   <body>
     <div id="splash">
       <div id="splash-content">
-        <svg width="80" height="80" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-          <rect width="1024" height="1024" rx="228" fill="#f0da88"/>
-          <path d="M512 751 C705 489 671 228 512 216 C353 228 319 489 512 751 Z" fill="#20211e"/>
-        </svg>
-        <svg width="280" height="100" viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
-          <text x="320" y="135" text-anchor="middle" font-size="120" font-weight="700" letter-spacing="26" fill="#20211e">PYN</text>
-        </svg>
+        <div id="splash-droplet">
+          <svg width="100" height="100" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+            <rect width="1024" height="1024" rx="228" fill="#f0da88"/>
+            <path d="M512 751 C705 489 671 228 512 216 C353 228 319 489 512 751 Z" fill="#20211e"/>
+          </svg>
+        </div>
+        <div id="splash-text-wrapper">
+          <svg id="splash-text" viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+            <text x="320" y="135" text-anchor="middle" font-size="120" font-weight="700" letter-spacing="26" fill="#20211e">PYN</text>
+          </svg>
+        </div>
       </div>
     </div>
     <div id="root"></div>
