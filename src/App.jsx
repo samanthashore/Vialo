@@ -20,7 +20,7 @@ const CSS = `
   --line:#eeeae0; --line-2:#eeeae0;
   --accent:#f0da88; --accent-soft:#f3efe6; --accent-ink:#20211e;
   --amber:#a39a88; --amber-soft:#f3efe6; --red:#b5503e; --red-soft:#fdf0ef;
-  --spruce:var(--spruce); --spruce-soft:var(--spruce-soft); --success:#4f7d5f; --warning:#b87a2e;
+  --spruce:#2f5d5a; --spruce-soft:#e3ece9; --success:#4f7d5f; --warning:#b87a2e;
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
   font-family:var(--sans); color:var(--ink); background:var(--bg);
   position:relative; display:flex; flex-direction:column;
@@ -240,7 +240,7 @@ const CSS = `
 @keyframes posshim{to{background-position:-200% 0;}}
 
 .pos-tabs{position:absolute;bottom:0;left:0;right:0;height:88px;padding:9px 0 22px;background:rgba(250,251,252,0.82);backdrop-filter:saturate(180%) blur(22px);-webkit-backdrop-filter:saturate(180%) blur(22px);border-top:1px solid var(--line);display:flex;}
-.pos-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;color:var(--ink-3);transition:color .15s;padding:6px 0;}
+.pos-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;color:var(--ink-3);transition:color .15s;padding:6px 0;outline:none;-webkit-user-select:none;user-select:none;}
 .pos-tab.active{color:var(--accent);}
 .pos-tab-lbl{font-size:9.5px;font-weight:700;letter-spacing:0.01em;}
 
@@ -712,8 +712,12 @@ export default function App(){
   const[undoMsg,setUndoMsg]=useState(null);
   const[undoPid,setUndoPid]=useState(null);
   const[doseDetail,setDoseDetail]=useState(null);
+  const[peptideDetail,setPeptideDetail]=useState(null);
+  const[onboardingStep,setOnboardingStep]=useState(1);
+  const[onboardingPeptide,setOnboardingPeptide]=useState({name:"",dose:"",color:"#4f7d5f",time:"09:00",form:"powder",schedule:{type:"daily"}});
   const wasComplete=useRef(false);
   const now=new Date(clock);
+  const showOnboarding=peptides.length===0&&!metrics?.seenOnboarding&&user;
 
   useEffect(()=>{let on=true;supabase?.auth?.getUser().then(({data})=>{if(on)setUser(data?.user||null);});return()=>{on=false;};},[]);
   useEffect(()=>{if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}},[]);
@@ -788,9 +792,19 @@ export default function App(){
   const setUnit=(u)=>setMetrics(m=>({...m,unit:u}));
   const setNotifications=(on)=>setMetrics(m=>({...m,notificationsOn:on}));
   const setReminderTime=(t)=>setMetrics(m=>({...m,reminderTime:t}));
+  const completeOnboarding=(addedPeptide)=>{
+    if(addedPeptide&&onboardingPeptide.name.trim()){
+      const today=dateKey(new Date());
+      setPeptides(prev=>[...prev,{id:"p_"+Date.now().toString(36),name:onboardingPeptide.name.trim(),dose:onboardingPeptide.dose||"",color:onboardingPeptide.color,time:onboardingPeptide.time,form:onboardingPeptide.form||"powder",startDate:today,schedule:onboardingPeptide.schedule}]);
+    }
+    setMetrics(m=>({...m,seenOnboarding:true}));
+    setOnboardingStep(1);
+    setOnboardingPeptide({name:"",dose:"",color:"#4f7d5f",time:"09:00",form:"powder",schedule:{type:"daily"}});
+  };
   const addEnergy=(v)=>setMetrics(m=>({...m,energy:{...(m.energy||{}),[dateKey(now)]:v}}));
   const addRecovery=(field,v)=>setMetrics(m=>({...m,recovery:{...(m.recovery||{}),[dateKey(now)]:{...((m.recovery||{})[dateKey(now)]||{}),[field]:v}}}));
 
+  const scheduleNotificationsRef=useRef(null);
   const requestNotificationPermission=async()=>{
     if(!('Notification'in window))return;
     if(Notification.permission==='granted')return;
@@ -800,30 +814,31 @@ export default function App(){
   };
 
   const scheduleNotifications=()=>{
+    if(scheduleNotificationsRef.current)clearTimeout(scheduleNotificationsRef.current);
     if(!metrics?.notificationsOn||!('Notification'in window)||Notification.permission!=='granted')return;
-    if(!navigator.serviceWorker?.controller)return;
     peptides.forEach(p=>{
       if(!isDue(p,now,logs))return;
       const time=p.time||'09:00';
       const [h,m]=time.split(':').map(Number);
       const notifTime=new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0,0);
-      if(notifTime.getTime()>now.getTime()){
-        navigator.serviceWorker.controller.postMessage({
-          type:'SCHEDULE_NOTIFICATION',
-          title:`Time for ${p.name}`,
-          body:`Log your ${p.dose||p.name} dose`,
-          peptideName:p.id
-        });
+      const timeUntil=notifTime.getTime()-now.getTime();
+      if(timeUntil>0&&timeUntil<86400000){
+        scheduleNotificationsRef.current=setTimeout(()=>{
+          if(Notification.permission==='granted'){
+            new Notification(`Time for ${p.name}`,{body:`Log your ${p.dose||p.name} dose`,icon:'/pyn-icon.png',tag:p.id,requireInteraction:true});
+          }
+        },timeUntil);
       }
     });
   };
 
-  useEffect(()=>{requestNotificationPermission();},[]);
+  useEffect(()=>{if(metrics?.notificationsOn)requestNotificationPermission();},[metrics?.notificationsOn]);
   useEffect(()=>{scheduleNotifications();},[peptides,metrics?.notificationsOn,now]);
   const addLab=(e)=>setMetrics(m=>({...m,labs:[...(m.labs||[]),e]}));
   const deleteLab=(id)=>setMetrics(m=>({...m,labs:(m.labs||[]).filter(l=>l.id!==id)}));
 
   const savePeptide=(p)=>{setPeptides(prev=>prev.some(x=>x.id===p.id)?prev.map(x=>x.id===p.id?p:x):[...prev,p]);setEditing(null);};
+  const savePrepData=(peptideId,prepData)=>{setPeptides(prev=>prev.map(p=>p.id===peptideId?{...p,prep:prepData}:p));setPeptideDetail(null);};
   const deletePeptide=(id)=>{setPeptides(prev=>prev.filter(x=>x.id!==id));setLogs(prev=>{const c={...prev};Object.keys(c).forEach(k=>{if(k.startsWith(id+"__"))delete c[k];});return c;});setEditing(null);};
   const applyProtocol=(tpl)=>{
     const today=dateKey(new Date());
@@ -877,15 +892,13 @@ export default function App(){
       <style>{CSS}</style>
       <div className="pos-scroll">
         {tab==="today"&&<Today now={now} due={dueToday} done={doneToday} taken={taken} pending={pendingToday} onLog={logDose} onRemove={removeFromToday} logAll={logAll} logs={logs} peptides={peptides} metrics={metrics} clinic={clinic} addEnergy={addEnergy} onPickSite={p=>setPickSite(p)} onClinic={()=>setShowClinic(true)} onAdd={()=>setEditing("new")} onShare={()=>setShare(true)} user={user} onAccount={()=>setShowAccount(true)} undoMsg={undoMsg} onUndo={undoDose} onDoseDetail={(d)=>setDoseDetail(d)}/>}
-        {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack}/>}
-        {tab==="tools"&&<Tools peptides={peptides} logs={logs} metrics={metrics} now={now}/>}
+        {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onDetail={p=>setPeptideDetail(p)} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack}/>}
         {tab==="insights"&&<Insights peptides={peptides} logs={logs} metrics={metrics} now={now} addWeight={addWeight} setUnit={setUnit} addRecovery={addRecovery} addLab={addLab} deleteLab={deleteLab} onShare={()=>setShare(true)}/>}
         {tab==="profile"&&user&&<ProfileTab user={user} clinic={clinic} metrics={metrics} now={now} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime} onClinic={()=>setShowClinic(true)}/>}
       </div>
       <nav className="pos-tabs">
         <Tab icon={Zap} label="Today" active={tab==="today"} onClick={()=>setTab("today")}/>
         <Tab icon={Layers} label="Stacks" active={tab==="stacks"} onClick={()=>setTab("stacks")}/>
-        <Tab icon={Calculator} label="Tools" active={tab==="tools"} onClick={()=>setTab("tools")}/>
         <Tab icon={Activity} label="Insights" active={tab==="insights"} onClick={()=>setTab("insights")}/>
         <Tab icon={User} label="Profile" active={tab==="profile"} onClick={()=>{setShowAccount(true);setTab("profile")}}/>
       </nav>
@@ -899,6 +912,9 @@ export default function App(){
       <EditSheet key={editing==="new"?"new":editing?.id||"closed"} open={!!editing} peptide={editing==="new"?null:editing} onClose={()=>setEditing(null)} onSave={savePeptide} onDelete={deletePeptide} onHistory={p=>setHistoryPeptide(p)}/>
       <HistorySheet open={!!historyPeptide} peptide={historyPeptide} logs={logs} now={now} onToggle={toggleLogOn} onClose={()=>setHistoryPeptide(null)}/>
       <DoseDetailSheet open={!!doseDetail} dose={doseDetail} metrics={metrics} now={now} onRemove={(pid)=>{removeFromToday(pid);setDoseDetail(null);}} onClose={()=>setDoseDetail(null)}/>
+      <PeptideDetailSheet open={!!peptideDetail} peptide={peptideDetail} onClose={()=>setPeptideDetail(null)} onEdit={(p)=>{setEditing(p);setPeptideDetail(null);}} onSavePrep={(prepData)=>savePrepData(peptideDetail?.id,prepData)}/>
+      <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} now={now} onClose={()=>setShowAccount(false)} onClinic={()=>setShowClinic(true)} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime}/>
+      <OnboardingSheet open={showOnboarding} step={onboardingStep} peptide={onboardingPeptide} onStepChange={setOnboardingStep} onPeptideChange={setOnboardingPeptide} onComplete={completeOnboarding} clinic={clinic} onClinic={()=>setShowClinic(true)}/>
 
     </div>
   );
@@ -1046,6 +1062,129 @@ function AccountSheet({open,user,clinic,metrics,now,onClose,onClinic,onSetUnit,o
     </div>
   </>);
 }
+
+function OnboardingSheet({open,step,peptide,onStepChange,onPeptideChange,onComplete,clinic,onClinic}){
+  const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
+  const colors=["#4f7d5f","#2f5d5a","#b87a2e","#b5503e","#6b8e7f","#a39a88"];
+  const scheduleTypes=["daily","everyN","weekly"];
+  useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
+  if(!render||!open)return null;
+  const handleNext=()=>{if(step===1&&!peptide.name.trim())return;if(step<3){onStepChange(step+1);}};
+  const handleBack=()=>{if(step>1)onStepChange(step-1);};
+  const handleSkip=()=>{onComplete(false);};
+  const handleComplete=()=>{onComplete(step===1||peptide.name.trim());};
+  return(<>
+    <div className={`pos-ov ${anim?"open":""}`} onClick={handleSkip}/>
+    <div className={`pos-sheet ${anim?"open":""}`} style={{maxHeight:"90vh",overflow:"auto"}}>
+      <div className="pos-grab"/>
+      <div className="pos-snav"><button onClick={handleSkip} style={{color:"var(--ink-2)"}}>Skip</button><span className="pos-snav-t">Setup</span><span style={{width:54}}>{step}/3</span></div>
+      <div className="pos-sbody">
+        {step===1&&<>
+          <div style={{padding:"24px 16px 20px",borderBottom:"1px solid var(--line)"}}>
+            <div className="pos-eyebrow" style={{marginBottom:12}}>Add your first peptide</div>
+            <div style={{fontSize:15,color:"var(--ink-2)",lineHeight:1.5}}>Start with one and build from there. You can add more anytime.</div>
+          </div>
+          <div style={{padding:"16px 16px 20px"}}>
+            <div style={{marginBottom:14}}><label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Peptide name</label><input type="text" placeholder="e.g., GHK-Cu, NAD+" value={peptide.name} onChange={e=>onPeptideChange({...peptide,name:e.target.value})} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/></div>
+            <div style={{marginBottom:14}}><label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Dose (optional)</label><input type="text" placeholder="e.g., 500mcg, 250mg" value={peptide.dose} onChange={e=>onPeptideChange({...peptide,dose:e.target.value})} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/></div>
+            <div style={{marginBottom:14}}><label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:8}}>Color</label><div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:8}}>{colors.map(c=>(<button key={c} onClick={()=>onPeptideChange({...peptide,color:c})} style={{width:"100%",height:44,borderRadius:10,background:c,border:peptide.color===c?"3px solid var(--ink)":"1px solid rgba(0,0,0,0.1)",cursor:"pointer"}}/>))}</div></div>
+            <div style={{marginBottom:14}}><label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Time</label><input type="time" value={peptide.time} onChange={e=>onPeptideChange({...peptide,time:e.target.value})} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/></div>
+            <div style={{marginBottom:0}}><label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:8}}>Preparation type</label><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}><button onClick={()=>onPeptideChange({...peptide,form:"powder"})} style={{padding:"10px",background:peptide.form==="powder"?"var(--accent-soft)":"var(--surface)",border:peptide.form==="powder"?"2px solid var(--accent)":"1px solid var(--line)",borderRadius:8,fontSize:13,fontWeight:peptide.form==="powder"?700:600,cursor:"pointer",fontFamily:"var(--sans)"}}>Powder</button><button onClick={()=>onPeptideChange({...peptide,form:"premixed"})} style={{padding:"10px",background:peptide.form==="premixed"?"var(--accent-soft)":"var(--surface)",border:peptide.form==="premixed"?"2px solid var(--accent)":"1px solid var(--line)",borderRadius:8,fontSize:13,fontWeight:peptide.form==="premixed"?700:600,cursor:"pointer",fontFamily:"var(--sans)"}}>Pre-mixed</button><button onClick={()=>onPeptideChange({...peptide,form:"pen"})} style={{padding:"10px",background:peptide.form==="pen"?"var(--accent-soft)":"var(--surface)",border:peptide.form==="pen"?"2px solid var(--accent)":"1px solid var(--line)",borderRadius:8,fontSize:13,fontWeight:peptide.form==="pen"?700:600,cursor:"pointer",fontFamily:"var(--sans)"}}>Pen</button><button onClick={()=>onPeptideChange({...peptide,form:"oral"})} style={{padding:"10px",background:peptide.form==="oral"?"var(--accent-soft)":"var(--surface)",border:peptide.form==="oral"?"2px solid var(--accent)":"1px solid var(--line)",borderRadius:8,fontSize:13,fontWeight:peptide.form==="oral"?700:600,cursor:"pointer",fontFamily:"var(--sans)"}}>Oral</button></div></div>
+          </div>
+        </>}
+        {step===2&&<>
+          <div style={{padding:"24px 16px 20px",borderBottom:"1px solid var(--line)"}}>
+            <div className="pos-eyebrow" style={{marginBottom:12}}>Set the schedule</div>
+            <div style={{fontSize:15,color:"var(--ink-2)",lineHeight:1.5}}>How often do you take this peptide?</div>
+          </div>
+          <div style={{padding:"16px 16px 20px"}}>
+            <div style={{marginBottom:20}}><button onClick={()=>onPeptideChange({...peptide,schedule:{type:"daily"}})} style={{width:"100%",textAlign:"left",padding:"14px 14px",background:peptide.schedule.type==="daily"?"var(--accent-soft)":"var(--surface)",border:peptide.schedule.type==="daily"?"2px solid var(--accent)":"1px solid var(--line)",borderRadius:10,fontWeight:peptide.schedule.type==="daily"?700:600,cursor:"pointer",fontSize:14,fontFamily:"var(--sans)"}}><div style={{fontWeight:700}}>Daily</div><div style={{fontSize:12,color:"var(--ink-2)",marginTop:2}}>Every day at the same time</div></button></div>
+            <div style={{marginBottom:20}}><button onClick={()=>onPeptideChange({...peptide,schedule:{type:"everyN",n:2}})} style={{width:"100%",textAlign:"left",padding:"14px 14px",background:peptide.schedule.type==="everyN"?"var(--accent-soft)":"var(--surface)",border:peptide.schedule.type==="everyN"?"2px solid var(--accent)":"1px solid var(--line)",borderRadius:10,fontWeight:peptide.schedule.type==="everyN"?700:600,cursor:"pointer",fontSize:14,fontFamily:"var(--sans)"}}><div style={{fontWeight:700,display:"flex",alignItems:"center",gap:8}}>Every <input type="number" min="2" max="30" value={peptide.schedule.n||2} onChange={e=>onPeptideChange({...peptide,schedule:{...peptide.schedule,n:parseInt(e.target.value)||2}})} onClick={e=>e.stopPropagation()} style={{width:40,border:"1px solid var(--line-2)",borderRadius:6,padding:"4px 6px",fontSize:13,fontFamily:"var(--sans)",outline:"none"}}/> days</div><div style={{fontSize:12,color:"var(--ink-2)",marginTop:2}}>Rotates on a cycle</div></button></div>
+            <div style={{marginBottom:0}}><button onClick={()=>onPeptideChange({...peptide,schedule:{type:"weekly",days:[1,2,3,4,5]}})} style={{width:"100%",textAlign:"left",padding:"14px 14px",background:peptide.schedule.type==="weekly"?"var(--accent-soft)":"var(--surface)",border:peptide.schedule.type==="weekly"?"2px solid var(--accent)":"1px solid var(--line)",borderRadius:10,fontWeight:peptide.schedule.type==="weekly"?700:600,cursor:"pointer",fontSize:14,fontFamily:"var(--sans)"}}><div style={{fontWeight:700}}>Specific days</div><div style={{fontSize:12,color:"var(--ink-2)",marginTop:2}}>Mon–Fri or custom days</div></button></div>
+          </div>
+        </>}
+        {step===3&&<>
+          <div style={{padding:"24px 16px 20px",borderBottom:"1px solid var(--line)"}}>
+            <div className="pos-eyebrow" style={{marginBottom:12}}>Optional: Finish setup</div>
+            <div style={{fontSize:15,color:"var(--ink-2)",lineHeight:1.5}}>These make tracking easier, but you can skip for now.</div>
+          </div>
+          <div style={{padding:"16px 16px 20px"}}>
+            <div style={{marginBottom:16,background:"var(--surface)",borderRadius:12,padding:"14px",border:"1px solid var(--line)"}}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><Zap size={18} color="var(--accent)"/><span style={{fontWeight:700}}>Enable dose reminders</span></div><div style={{fontSize:13,color:"var(--ink-2)",marginLeft:26}}>Get notified when it's time to log your dose. You can turn this on later in Preferences.</div></div>
+            {clinic&&<div style={{background:"var(--surface)",borderRadius:12,padding:"14px",border:"1px solid var(--line)"}}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><Stethoscope size={18} color="var(--spruce)"/><span style={{fontWeight:700}}>Connected care</span></div><div style={{fontSize:13,color:"var(--ink-2)",marginLeft:26}}>{clinic.name} is available for managing your protocol. View more in Settings.</div></div>}
+            {!clinic&&<div style={{background:"var(--surface)",borderRadius:12,padding:"14px",border:"1px solid var(--line)"}}><div style={{fontSize:13,color:"var(--ink-2)"}}>No clinic connected yet. You can add one anytime in Settings.</div></div>}
+          </div>
+        </>}
+      </div>
+      <div style={{borderTop:"1px solid var(--line)",padding:"14px 16px 20px",display:"flex",gap:10}}>
+        {step>1&&<button onClick={handleBack} style={{flex:1,padding:"12px",background:"var(--surface-2)",border:"1px solid var(--line)",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Back</button>}
+        {step<3&&<button onClick={handleNext} disabled={step===1&&!peptide.name.trim()} style={{flex:step>1?1:2,padding:"12px",background:"var(--accent)",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)",opacity:step===1&&!peptide.name.trim()?0.5:1}}>{step===2?"Review":"Next"}</button>}
+        {step===3&&<button onClick={handleComplete} style={{flex:1,padding:"12px",background:"var(--accent)",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Start</button>}
+      </div>
+    </div>
+  </>);
+}
+
+function PeptideDetailSheet({open,peptide,onClose,onEdit,onSavePrep}){
+  const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
+  const[prep,setPrep]=useState({vialMg:"",waterMl:"",conc:"",mgPerClick:""});
+  useEffect(()=>{if(open&&peptide){setRender(true);requestAnimationFrame(()=>setAnim(true));setPrep({vialMg:peptide.recon?.vialMg||"",waterMl:peptide.recon?.waterMl||"",conc:peptide.recon?.conc||"",mgPerClick:peptide.prep?.mgPerClick||""});}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open,peptide]);
+  if(!render||!peptide)return null;
+  const vial=parseFloat(prep.vialMg)||0,water=parseFloat(prep.waterMl)||0;
+  const calcConc=water>0?vial/water:null;
+  const conc=peptide.form==="premixed"?parseFloat(prep.conc)||0:calcConc||0;
+  const doseNum=peptide.dose?parseFloat(peptide.dose.match(/\d+\.?\d*/)?.[0]||0):0;
+  const drawUnits=conc>0?Math.round((doseNum/conc)*1000)/10:0;
+  const drawMl=drawUnits>0?drawUnits/100:0;
+  return(<>
+    <div className={`pos-ov ${anim?"open":""}`} onClick={onClose}/>
+    <div className={`pos-sheet ${anim?"open":""}`}>
+      <div className="pos-grab"/>
+      <div className="pos-snav"><button onClick={onClose}>Close</button><span className="pos-snav-t">Preparation</span><div style={{display:"flex",gap:8}}><button onClick={()=>onEdit(peptide)} style={{background:"none",border:"none",color:"var(--ink-2)",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--sans)"}}>Edit peptide</button><button onClick={()=>onSavePrep(prep)} style={{background:"var(--accent)",color:"#fff",border:"none",borderRadius:6,padding:"6px 14px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Save</button></div></div>
+      <div className="pos-sbody">
+        <div style={{padding:"20px 16px"}}>
+          <div style={{fontSize:18,fontWeight:780,marginBottom:4}}>{peptide.name}</div>
+          <div style={{fontSize:13,color:"var(--ink-2)",marginBottom:20}}>Dose: {peptide.dose||"—"}</div>
+
+          {peptide.form==="powder"&&<>
+            <div className="pos-eyebrow" style={{marginBottom:12}}>Reconstitution</div>
+            <div style={{background:"var(--surface)",borderRadius:12,padding:"16px",marginBottom:16}}>
+              <div style={{marginBottom:12}}><label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Vial strength</label><input type="number" inputMode="decimal" placeholder="mg" value={prep.vialMg} onChange={e=>setPrep({...prep,vialMg:e.target.value})} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"8px 10px",fontSize:13,fontFamily:"var(--sans)",outline:"none"}}/></div>
+              <div style={{marginBottom:12}}><label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>BAC water</label><input type="number" inputMode="decimal" placeholder="mL" value={prep.waterMl} onChange={e=>setPrep({...prep,waterMl:e.target.value})} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"8px 10px",fontSize:13,fontFamily:"var(--sans)",outline:"none"}}/></div>
+              {calcConc&&<div style={{background:"var(--accent-soft)",borderRadius:8,padding:"8px 10px",fontSize:12,fontWeight:600,marginBottom:12}}>Concentration: {calcConc.toFixed(2)} mg/mL</div>}
+              {calcConc&&doseNum>0&&<div style={{fontSize:11,color:"var(--ink-2)",lineHeight:1.4}}><div style={{fontWeight:600,marginBottom:6}}>To draw {peptide.dose}:</div><div style={{background:"var(--surface-2)",borderRadius:8,padding:"8px 10px"}}>Draw <span style={{fontWeight:700}}>{drawUnits<10?drawUnits.toFixed(1):Math.round(drawUnits)}</span> units ({drawMl.toFixed(3)} mL)</div></div>}
+            </div>
+          </>}
+
+          {peptide.form==="premixed"&&<>
+            <div className="pos-eyebrow" style={{marginBottom:12}}>Vial strength</div>
+            <div style={{background:"var(--surface)",borderRadius:12,padding:"16px",marginBottom:16}}>
+              <input type="number" inputMode="decimal" placeholder="mg/mL" value={prep.conc} onChange={e=>setPrep({...prep,conc:e.target.value})} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"8px 10px",fontSize:13,fontFamily:"var(--sans)",outline:"none"}}/>
+            </div>
+            {conc>0&&doseNum>0&&<div style={{fontSize:11,color:"var(--ink-2)",lineHeight:1.4}}><div style={{fontWeight:600,marginBottom:6}}>To draw {peptide.dose}:</div><div style={{background:"var(--surface-2)",borderRadius:8,padding:"8px 10px"}}>Draw <span style={{fontWeight:700}}>{drawUnits<10?drawUnits.toFixed(1):Math.round(drawUnits)}</span> units ({drawMl.toFixed(3)} mL)</div></div>}
+          </>}
+
+          {peptide.form==="pen"&&<>
+            <div className="pos-eyebrow" style={{marginBottom:12}}>Pen settings</div>
+            <div style={{background:"var(--surface)",borderRadius:12,padding:"16px"}}>
+              <div style={{marginBottom:12}}><label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Dose per click</label><input type="number" inputMode="decimal" placeholder="mg (optional)" value={prep.mgPerClick} onChange={e=>setPrep({...prep,mgPerClick:e.target.value})} style={{width:"100%",border:"1px solid var(--line-2)",borderRadius:8,padding:"8px 10px",fontSize:13,fontFamily:"var(--sans)",outline:"none"}}/></div>
+              {prep.mgPerClick&&peptide.dose&&<div style={{background:"var(--accent-soft)",borderRadius:8,padding:"8px 10px",fontSize:12,fontWeight:600}}>≈ {(parseFloat(peptide.dose)/parseFloat(prep.mgPerClick)).toFixed(1)} clicks</div>}
+            </div>
+          </>}
+
+          {peptide.form==="oral"&&<>
+            <div className="pos-eyebrow" style={{marginBottom:12}}>Dose information</div>
+            <div style={{background:"var(--surface)",borderRadius:12,padding:"16px"}}>
+              <div style={{fontSize:14,fontWeight:600}}>{peptide.dose}</div>
+            </div>
+          </>}
+
+          <div className="pos-note" style={{marginTop:20}}>Math only, never a recommendation. You set the dose from your provider — the app just helps you calculate the prep.</div>
+        </div>
+      </div>
+    </div>
+  </>);
+}
+
 function Confetti(){
   const pieces=useMemo(()=>Array.from({length:64},(_,i)=>({left:Math.random()*100,color:CONFETTI_COLORS[i%CONFETTI_COLORS.length],delay:Math.random()*0.5,dur:1.8+Math.random()*1.3,w:6+Math.random()*6,rot:Math.random()*360})),[]);
   return(<div className="pos-confetti">{pieces.map((p,i)=>(<span key={i} className="pos-cpiece" style={{left:`${p.left}%`,background:p.color,width:p.w,height:p.w*1.5,animationDelay:`${p.delay}s`,animationDuration:`${p.dur}s`,transform:`rotate(${p.rot}deg)`}}/>))}</div>);
@@ -1126,7 +1265,7 @@ function renderTimeline(items,nowMin,now,nextId,onLog,onPickSite,onRemove,onDeta
 function NextRestInfo({peptides,now,logs}){let best=null;peptides.forEach(p=>{const dt=nextDoseAt(p,now,logs);if(dt&&(!best||dt<best.dt))best={p,dt};});if(!best)return <div className="pos-empty-s">Nothing scheduled. Enjoy the rest day.</div>;return <div className="pos-empty-s">Nothing due today. Next up: <b style={{color:best.p.color}}>{best.p.name}</b> in {fmtGap(best.dt-now)}.</div>;}
 
 /* ---------- STACKS ---------- */
-function Stacks({peptides,logs,metrics,now,clinic,onEdit,onAdd,onBrowse,onClinic,onJourney,onHistory,ai,loading,error,stale,onRun}){
+function Stacks({peptides,logs,metrics,now,clinic,onDetail,onEdit,onAdd,onBrowse,onClinic,onJourney,onHistory,ai,loading,error,stale,onRun}){
   const[mode,setMode]=useState("stacks");
   const taken=(id,d)=>!!logs[`${id}__${dateKey(d)}`];
   return(<>
@@ -1145,7 +1284,7 @@ function Stacks({peptides,logs,metrics,now,clinic,onEdit,onAdd,onBrowse,onClinic
       const nextSite=p.rotate!==false?suggestSite(peptideSiteMap(metrics,p.id),now):null;
       const jw=journeyWeek(p,now);
       return(
-        <div className="pos-pcard" key={p.id} onClick={()=>onEdit(p)}>
+        <div className="pos-pcard" key={p.id} onClick={()=>onDetail(p)}>
           <div className="pos-pcard-strip" style={{background:p.color}}/>
           <div className="pos-pcard-top"><div className="pos-orb" style={{background:`${p.color}1c`}}><Syringe size={19} color={p.color}/></div>
             <div style={{flex:1,minWidth:0}}><div className="pos-pcard-name">{p.name}</div><div className="pos-pcard-sched">{scheduleLabel(p)}{p.time?` · ${fmtTime(p.time)}`:""}</div></div>
@@ -1168,19 +1307,6 @@ function Stacks({peptides,logs,metrics,now,clinic,onEdit,onAdd,onBrowse,onClinic
   </>);
 }
 
-/* ---------- TOOLS ---------- */
-function Tools({peptides,logs,metrics,now}){
-  const[mode,setMode]=useState("calc");
-  return(<>
-    <div className="pos-head"><div><div className="pos-h-eyebrow">Utilities</div><div className="pos-title">Tools</div></div></div>
-    <div className="pos-mini-tabs">
-      <button className={mode==="calc"?"active":""} onClick={()=>setMode("calc")}>Draw calculator</button>
-      <button className={mode==="backup"?"active":""} onClick={()=>setMode("backup")}>Backup</button>
-    </div>
-    {mode==="calc"&&<ReconCalc/>}
-    {mode==="backup"&&<Backup peptides={peptides} logs={logs} metrics={metrics}/>}
-  </>);
-}
 
 function ReconCalc(){
   const[mode,setMode]=useState("mix");
@@ -1230,19 +1356,6 @@ function SitePicker({open,peptide,metrics,now,onPick,onClose}){
       </div>
     </div>
   </>);
-}
-
-function Backup({peptides,logs,metrics}){
-  const[copied,setCopied]=useState(false);
-  const json=useMemo(()=>JSON.stringify({version:2,exportedAt:new Date().toISOString(),peptides,logs,metrics},null,2),[peptides,logs,metrics]);
-  const copy=async()=>{try{await navigator.clipboard.writeText(json);setCopied(true);setTimeout(()=>setCopied(false),1800);}catch(_){}};
-  const download=()=>{try{const blob=new Blob([json],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`peptide-backup-${dateKey(new Date())}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}catch(_){}};
-  return(<div className="pos-tool-card">
-    <div className="pos-tool-head"><div className="pos-tool-ic"><Download size={20}/></div><div><div className="pos-tool-t">Backup &amp; export</div><div className="pos-tool-s">A copy of everything in the app</div></div></div>
-    <textarea className="pos-backup-area" readOnly value={json}/>
-    <div className="pos-btn-row"><button className="pos-btn" onClick={copy}><Copy size={15}/>{copied?"Copied!":"Copy"}</button><button className="pos-btn primary" onClick={download}><Download size={15}/>Download</button></div>
-    <div className="pos-note"><ShieldCheck size={13} style={{flexShrink:0,marginTop:1,color:"var(--accent)"}}/>Everything is stored privately in your account and synced to the cloud. A local backup is still handy before big changes.</div>
-  </div>);
 }
 
 /* ---------- PAIRINGS ---------- */
@@ -1714,8 +1827,10 @@ function EditSheet({open,peptide,onClose,onSave,onDelete,onHistory}){
   const[rDose,setRDose]=useState(peptide?.recon?.doseVal||"");
   const[rUnit,setRUnit]=useState(peptide?.recon?.doseUnit||"mcg");
   const[rotate,setRotate]=useState(peptide?peptide.rotate!==false:true);
+  const[form,setForm]=useState(peptide?.form||"powder");
   const fileRef=useRef(null);
   const[scanning,setScanning]=useState(false),[scanMsg,setScanMsg]=useState(null);
+  const[showCalc,setShowCalc]=useState(false);
   const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
   useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
   if(!render)return null;
@@ -1734,7 +1849,7 @@ function EditSheet({open,peptide,onClose,onSave,onDelete,onHistory}){
     let supply=undefined;
     if(supplyOn){supply={vials:parseInt(supplyVials)||0,vialMl:liquid?(parseFloat(supplyVialMl)||0):undefined};}
     const recon=reconValid?reconObj:undefined;
-    onSave({id:peptide?.id||("p_"+Date.now().toString(36)),name:name.trim(),dose:(computedDose||dose.trim()),color,time,startDate,rotate,cycle:cycleOn?{on:onW,off:offW}:undefined,supply,recon,schedule:type==="daily"?{type:"daily"}:type==="everyN"?{type:"everyN",n}:{type:"weekly",days:days.slice().sort((a,b)=>a-b)}});
+    onSave({id:peptide?.id||("p_"+Date.now().toString(36)),name:name.trim(),dose:(computedDose||dose.trim()),color,time,startDate,rotate,form,cycle:cycleOn?{on:onW,off:offW}:undefined,supply,recon,schedule:type==="daily"?{type:"daily"}:type==="everyN"?{type:"everyN",n}:{type:"weekly",days:days.slice().sort((a,b)=>a-b)}});
   };
   const onScanFile=async(e)=>{
     const file=e.target.files&&e.target.files[0]; if(!file)return;
@@ -1791,6 +1906,10 @@ function EditSheet({open,peptide,onClose,onSave,onDelete,onHistory}){
           {type==="everyN"&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:15}}><span style={{fontSize:16}}>Every</span><div className="pos-step"><button disabled={n<=2} onClick={()=>setN(x=>Math.max(2,x-1))}>−</button><span className="tnum">{n}</span><button disabled={n>=30} onClick={()=>setN(x=>Math.min(30,x+1))}>+</button></div><span style={{fontSize:16,color:"var(--ink-2)"}}>days</span></div>}
           {type==="weekly"&&<div className="pos-days" style={{marginTop:15}}>{DOW1.map((d,i)=>(<button key={i} className="pos-day" style={days.includes(i)?{background:color,color:"#fff",borderColor:color}:{}} onClick={()=>toggleDay(i)}>{d}</button>))}</div>}
         </div>
+        <div className="pos-flbl">Preparation type</div>
+        <div className="pos-field" style={{padding:"12px 13px"}}>
+          <div className="pos-seg"><button className={form==="powder"?"active":""} onClick={()=>setForm("powder")}>Powder</button><button className={form==="premixed"?"active":""} onClick={()=>setForm("premixed")}>Pre-mixed</button><button className={form==="pen"?"active":""} onClick={()=>setForm("pen")}>Pen</button><button className={form==="oral"?"active":""} onClick={()=>setForm("oral")}>Oral</button></div>
+        </div>
         <div className="pos-flbl">Dose to draw</div>
         <div className="pos-field">
           <div className="pos-frow"><label style={{flex:1,display:"flex",alignItems:"center",gap:9,width:"auto"}}><Syringe size={16} color="var(--ink-2)"/>Track draw amount</label><button className={`pos-toggle ${reconOn?"on":""}`} onClick={()=>setReconOn(v=>!v)}/></div>
@@ -1812,6 +1931,8 @@ function EditSheet({open,peptide,onClose,onSave,onDelete,onHistory}){
         {reconOn&&drawPrev&&<div className="pos-recon-prev"><div className="big tnum">Draw {drawPrev.units<10?drawPrev.units.toFixed(1):Math.round(drawPrev.units)} units{drawPrev.doseMg!=null?` · ${fmtMg(drawPrev.doseMg)}`:""}</div><div className="sub">{drawPrev.conc?`${drawPrev.mL.toFixed(3)} mL · ${drawPrev.conc.toFixed(2)} mg/mL${drawPrev.perVial?` · ≈${drawPrev.perVial} doses/vial`:""}`:`${drawPrev.mL.toFixed(2)} mL on a U-100 syringe`}</div></div>}
         {reconOn&&drawPrev?.warn==="over"&&<div className="pos-caut" style={{marginTop:10}}><AlertTriangle size={14} style={{flexShrink:0,marginTop:1}}/>Exceeds a 1 mL (100u) syringe — {rMode==="mix"?"add more BAC water or split the dose.":"double-check, or split across injections."}</div>}
         {reconOn&&drawPrev?.warn==="tiny"&&<div className="pos-caut" style={{marginTop:10}}><AlertTriangle size={14} style={{flexShrink:0,marginTop:1}}/>Very small draw ({drawPrev.units.toFixed(1)}u) — {rMode==="mix"?"use less BAC water for a more readable amount.":"measure carefully."}</div>}
+        <button onClick={()=>setShowCalc(v=>!v)} style={{width:"100%",textAlign:"left",padding:"12px 13px",background:"transparent",border:"1px solid var(--line)",borderRadius:10,marginTop:16,marginBottom:showCalc?12:0,display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"var(--sans)",color:"var(--ink)"}}><Calculator size={17}/>Draw calculator</button>
+        {showCalc&&<ReconCalc/>}
         <div className="pos-flbl">Injection site</div>
         <div className="pos-field">
           <div className="pos-frow"><label style={{flex:1,display:"flex",alignItems:"center",gap:9,width:"auto"}}><MapPin size={16} color="var(--ink-2)"/>Track injection site</label><button className={`pos-toggle ${rotate?"on":""}`} onClick={()=>setRotate(v=>!v)}/></div>
