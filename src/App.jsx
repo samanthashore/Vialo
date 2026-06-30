@@ -1603,6 +1603,25 @@ function ClinicSheet({open,clinic,peptides,onConnect,onDisconnect,onAddProduct,o
   useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
   if(!render)return null;
   const have=new Set(peptides.map(p=>p.name.toLowerCase()));
+
+  const groupCatalog=(items)=>{
+    const groups={};
+    const categoryMap={
+      "Retatrutide":"GLP-1 / Metabolic","Tirzepatide":"GLP-1 / Metabolic",
+      "BPC-157":"Recovery & Repair","TB-500":"Recovery & Repair",
+      "GHK-Cu":"Cosmetic / Longevity","Glutathione":"Cosmetic / Longevity",
+      "NAD+":"Cellular & Energy","Ipamorelin":"Cellular & Energy"
+    };
+    items.forEach(item=>{
+      const cat=categoryMap[item.name]||"Other";
+      if(!groups[cat])groups[cat]=[];
+      groups[cat].push(item);
+    });
+    return groups;
+  };
+  const grouped=clinic?groupCatalog(clinic.catalog):{};
+  const groupOrder=["GLP-1 / Metabolic","Recovery & Repair","Cosmetic / Longevity","Cellular & Energy","Other"];
+
   return(<>
     <div className={`pos-ov ${anim?"open":""}`} onClick={onClose}/>
     <div className={`pos-sheet ${anim?"open":""}`}>
@@ -1619,22 +1638,29 @@ function ClinicSheet({open,clinic,peptides,onConnect,onDisconnect,onAddProduct,o
             </button>
           ))}
         </>:<>
-          <div className="pos-proto-hero" style={{background:`linear-gradient(135deg, ${clinic.accent}, ${clinic.accent}d0)`}}>
-            <div className="pos-proto-hero-emoji">{clinic.emoji}</div>
-            <div style={{flex:1}}><div style={{fontSize:21,fontWeight:800,letterSpacing:"-0.02em"}}>{clinic.name}</div><div style={{fontSize:13,opacity:0.92,marginTop:3}}>{clinic.tagline}</div></div>
+          <div style={{background:`linear-gradient(135deg, ${clinic.accent}0a, ${clinic.accent}05)`,borderRadius:14,padding:"12px 14px",marginBottom:16,border:`1px solid ${clinic.accent}22`,display:"flex",alignItems:"center",gap:10}}>
+            <div style={{fontSize:20}}>{clinic.emoji}</div>
+            <div style={{flex:1}}><div style={{fontSize:14,fontWeight:740,color:"var(--ink)",letterSpacing:"-0.02em"}}>{clinic.name}</div><div style={{fontSize:11,color:"var(--ink-2)",marginTop:1}}>{clinic.tagline}</div></div>
           </div>
-          <a href={clinic.storeUrl} target="_blank" rel="noopener noreferrer" className="pos-btn primary" style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,textDecoration:"none",marginTop:14}}><ExternalLink size={15}/>Shop &amp; reorder</a>
-          <button className="pos-btn" style={{width:"100%",marginTop:10,display:"flex",alignItems:"center",justifyContent:"center",gap:8}} onClick={onOpenProvider}><Building2 size={15}/>Open provider view (preview)</button>
-          <div className="pos-flbl">Catalog · tap to add</div>
-          <div className="pos-field">
-            {clinic.catalog.map((prod,i)=>{const added=have.has(prod.name.toLowerCase());return(
-              <div className="pos-frow" key={i} style={{gap:11}}>
-                <span style={{width:11,height:11,borderRadius:3,background:prod.color,flexShrink:0}}/>
-                <div style={{flex:1,minWidth:0}}><div style={{fontSize:15,fontWeight:700}}>{prod.name}</div><div style={{fontSize:12,color:"var(--ink-2)"}}>{prod.blurb}</div></div>
-                {added?<span className="pos-chip" style={{background:"var(--line)",color:"var(--ink-3)"}}>Added</span>:<button className="pos-mini-add" onClick={()=>onAddProduct(prod)}><Plus size={16}/></button>}
-              </div>);})}
+          <div style={{display:"flex",gap:10,marginBottom:16}}>
+            <a href={clinic.storeUrl} target="_blank" rel="noopener noreferrer" className="pos-btn primary" style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,textDecoration:"none",padding:"11px",fontSize:14,fontWeight:700}}><ExternalLink size={14}/>Shop</a>
+            <button className="pos-btn" style={{flex:0.4,display:"flex",alignItems:"center",justifyContent:"center",padding:"11px",borderRadius:10,border:"1px solid var(--line)",background:"var(--surface)",cursor:"pointer",color:"var(--ink-2)",fontFamily:"var(--sans)",fontSize:13}} onClick={onOpenProvider} title="Open provider view"><Building2 size={15}/></button>
           </div>
-          <div className="pos-note"><ShieldCheck size={13} style={{flexShrink:0,marginTop:1,color:"var(--accent)"}}/>Adding a product sets it up as a pre-mixed vial — just enter the units your provider prescribed. The app never recommends a dose.</div>
+          {groupOrder.map(cat=>{const items=grouped[cat];if(!items)return null;return(<div key={cat} style={{marginBottom:18}}>
+            <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:8,fontSize:10,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",color:"var(--ink-3)"}}>{cat}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {items.map((prod,i)=>{const added=have.has(prod.name.toLowerCase());return(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--surface-2)",borderRadius:11,border:"1px solid var(--line)"}}>
+                  <span style={{width:9,height:9,borderRadius:2,background:prod.color,flexShrink:0}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:14,fontWeight:680,color:"var(--ink)"}}>{prod.name}</div>
+                    <div style={{fontSize:11.5,color:"var(--ink-2)",marginTop:1,lineHeight:1.3}}>{prod.blurb.split(" · ").slice(0,1)[0]}</div>
+                  </div>
+                  {added?<div style={{display:"flex",alignItems:"center",gap:4,padding:"5px 8px",background:"var(--accent)",color:"#fff",borderRadius:6,fontSize:11,fontWeight:700,flexShrink:0}}><Check size={12}/>Done</div>:<button className="pos-mini-add" onClick={()=>onAddProduct(prod)} style={{width:32,height:32,borderRadius:8,border:"1px solid var(--line)",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"var(--accent)",fontFamily:"var(--sans)",flexShrink:0}}><Plus size={16}/></button>}
+                </div>);})}
+            </div>
+          </div>);})}
+          <div className="pos-note"><ShieldCheck size={13} style={{flexShrink:0,marginTop:1,color:"var(--accent)"}}/>Tap the <span style={{fontWeight:700}}>＋</span> to add items to your stack. Pre-mixed vials — just enter units as prescribed.</div>
           <button className="pos-del" onClick={onDisconnect}>Disconnect clinic</button>
         </>}
       </div>
