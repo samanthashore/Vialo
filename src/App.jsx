@@ -30,7 +30,7 @@ const CSS = `
 }
 @media (prefers-reduced-motion: reduce){ .pos-root *{transition:none!important;animation:none!important;} }
 .pos-root .tnum{font-variant-numeric:tabular-nums;letter-spacing:-0.02em;}
-.pos-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 18px 130px;}
+.pos-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 14px 130px;}
 .pos-scroll::-webkit-scrollbar{width:0;}
 .pos-eyebrow{font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-3);}
 
@@ -79,7 +79,7 @@ const CSS = `
 .pos-now-line{flex:1;height:1px;background:var(--line-2);}
 .pos-now-lbl{font-size:10.5px;font-weight:700;letter-spacing:0.04em;color:var(--accent);}
 
-.pos-pcard{position:relative;border-radius:20px;background:linear-gradient(135deg, #fdf9f0 0%, var(--surface-2) 100%);overflow:hidden;padding:16px 16px 14px;margin-bottom:13px;cursor:pointer;transition:transform .12s;box-shadow:0 1px 2px rgba(20,28,46,0.04),0 6px 22px rgba(20,28,46,0.05);}
+.pos-pcard{position:relative;border-radius:20px;background:linear-gradient(135deg, #fdf9f0 0%, var(--surface-2) 100%);overflow:hidden;padding:12px 12px 11px;margin-bottom:10px;cursor:pointer;transition:transform .12s;box-shadow:0 1px 2px rgba(20,28,46,0.04),0 6px 22px rgba(20,28,46,0.05);}
 .pos-pcard:active{transform:scale(0.985);}
 .pos-pcard-strip{position:absolute;left:0;top:0;bottom:0;width:4px;}
 .pos-pcard-top{display:flex;align-items:center;gap:12px;}
@@ -1284,7 +1284,7 @@ function Stacks({peptides,logs,metrics,now,clinic,onDetail,onEdit,onAdd,onBrowse
       const nextSite=p.rotate!==false?suggestSite(peptideSiteMap(metrics,p.id),now):null;
       const jw=journeyWeek(p,now);
       return(
-        <div className="pos-pcard" key={p.id} onClick={()=>onDetail(p)}>
+        <div className="pos-pcard" key={p.id} onClick={()=>onEdit(p)}>
           <div className="pos-pcard-strip" style={{background:p.color}}/>
           <div className="pos-pcard-top"><div className="pos-orb" style={{background:`${p.color}1c`}}><Syringe size={19} color={p.color}/></div>
             <div style={{flex:1,minWidth:0}}><div className="pos-pcard-name">{p.name}</div><div className="pos-pcard-sched">{scheduleLabel(p)}{p.time?` · ${fmtTime(p.time)}`:""}</div></div>
