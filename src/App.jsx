@@ -458,6 +458,27 @@ const PATIENTS=[
   {name:"Tom Becker",init:"TB",proto:"Recovery",adh:0.52,streak:0,last:"8d ago",per:[{name:"BPC-157",color:"#c77d4a",pct:0.61},{name:"TB-500",color:"#c9a23f",pct:0.43}]},
   {name:"Aisha Cole",init:"AC",proto:"Skin & Hair",adh:0.38,streak:0,last:"12d ago",per:[{name:"GHK-Cu",color:"#c77d4a",pct:0.40},{name:"Glutathione",color:"#4fa76b",pct:0.36}]},
 ];
+const SUPPLEMENTS=[
+  {name:"Magnesium",color:"#7b68ee",time:"21:00",category:"Mineral"},
+  {name:"Vitamin D",color:"#ffa500",time:"09:00",category:"Vitamin"},
+  {name:"Omega-3",color:"#4169e1",time:"12:00",category:"Fatty Acid"},
+  {name:"Zinc",color:"#cd853f",time:"09:00",category:"Mineral"},
+  {name:"Vitamin C",color:"#ff6b6b",time:"09:00",category:"Vitamin"},
+  {name:"B-Complex",color:"#87ceeb",time:"09:00",category:"Vitamin"},
+  {name:"Iron",color:"#8b4513",time:"12:00",category:"Mineral"},
+  {name:"Calcium",color:"#daa520",time:"12:00",category:"Mineral"},
+  {name:"Probiotics",color:"#228b22",time:"09:00",category:"Probiotic"},
+  {name:"Ashwagandha",color:"#9370db",time:"21:00",category:"Adaptogen"},
+  {name:"Curcumin",color:"#daa520",time:"12:00",category:"Polyphenol"},
+  {name:"CoQ10",color:"#ff8c00",time:"12:00",category:"Antioxidant"},
+  {name:"Alpha-Lipoic Acid",color:"#ffd700",time:"09:00",category:"Antioxidant"},
+  {name:"Resveratrol",color:"#8b0000",time:"12:00",category:"Polyphenol"},
+  {name:"Berberine",color:"#8b4513",time:"12:00",category:"Alkaloid"},
+  {name:"Creatine",color:"#696969",time:"12:00",category:"Amino Acid"},
+  {name:"Taurine",color:"#4b0082",time:"09:00",category:"Amino Acid"},
+  {name:"L-Theanine",color:"#6495ed",time:"09:00",category:"Amino Acid"},
+  {name:"Glycine",color:"#87ceeb",time:"21:00",category:"Amino Acid"},
+];
 function patientStatus(adh){return adh>=0.85?{label:"On track",color:"var(--accent)",bg:"var(--accent-soft)"}:adh>=0.6?{label:"Slipping",color:"var(--amber)",bg:"var(--amber-soft)"}:{label:"At risk",color:"var(--red)",bg:"var(--red-soft)"};}
 /* Educational, process-based journey — what to focus on at each stage. Not medical advice. */
 const JOURNEY=[
@@ -1692,16 +1713,21 @@ function DailyTimingSheet({open,peptides,onClose,onSave}){
   const[dragging,setDragging]=useState(null);
   const[dragover,setDragover]=useState(null);
   const[slots,setSlots]=useState({});
+  const[searchTerm,setSearchTerm]=useState("");
 
   useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
   useEffect(()=>{if(open){const s={morning:[],midday:[],evening:[],bedtime:[],anytime:[]};peptides.forEach(p=>{const slot=p.timeSlot||timeToSlot(p.time);s[slot]=[...s[slot],p];});setSlots(s);}},[ open,peptides]);
 
   if(!render)return null;
 
+  const have=new Set(peptides.map(p=>p.name.toLowerCase()));
+  const searchResults=searchTerm.trim()?SUPPLEMENTS.filter(s=>s.name.toLowerCase().includes(searchTerm.toLowerCase())&&!have.has(s.name.toLowerCase())):[];
+
   const handleDragStart=(e,peptide)=>{setDragging(peptide);};
   const handleDragOver=(e,slot)=>{e.preventDefault();setDragover(slot);};
   const handleDrop=(e,slot)=>{e.preventDefault();if(dragging){const updated={...dragging,timeSlot:slot};const newPeptides=peptides.map(p=>p.id===dragging.id?updated:p);onSave(newPeptides);setSlots(prev=>({...prev,[prev[Object.keys(prev).find(k=>prev[k].some(x=>x.id===dragging.id))]?.find(x=>x.id===dragging.id)?Object.keys(prev).find(k=>prev[k].some(x=>x.id===dragging.id)):null]:prev[Object.keys(prev).find(k=>prev[k].some(x=>x.id===dragging.id))]?.filter(x=>x.id!==dragging.id),[slot]:[...prev[slot],updated]}));setDragging(null);setDragover(null);}};
   const handleDragEnd=()=>{setDragging(null);setDragover(null);};
+  const addSupplement=(supp)=>{const today=dateKey(new Date());const newSupp={id:"s_"+Date.now().toString(36),name:supp.name,dose:"",color:supp.color,time:supp.time,startDate:today,rotate:true,schedule:{type:"daily"},type:"supplement"};onSave([...peptides,newSupp]);setSearchTerm("");};
 
   return(<>
     <div className={`pos-ov ${anim?"open":""}`} onClick={onClose}/>
@@ -1769,6 +1795,28 @@ function DailyTimingSheet({open,peptides,onClose,onSave}){
             </div>
           </div>
         ))}
+
+        <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid var(--line)"}}>
+          <div className="pos-eyebrow" style={{paddingLeft:6,marginBottom:10}}>Add supplements</div>
+          <input type="text" placeholder="Search supplements…" value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none",marginBottom:10}}/>
+          {searchResults.length>0&&(
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {searchResults.map(supp=>(
+                <div key={supp.name} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:"var(--surface-2)",borderRadius:8,border:"1px solid var(--line)"}}>
+                  <Droplet size={13} color={supp.color} strokeWidth={2.5}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:680,color:"var(--ink)"}}>{supp.name}</div>
+                    <div style={{fontSize:10,color:"var(--ink-2)",marginTop:1}}>{supp.category}</div>
+                  </div>
+                  <button onClick={()=>addSupplement(supp)} style={{width:32,height:32,borderRadius:8,border:"1px solid var(--line)",background:"var(--accent)",color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--sans)",flexShrink:0}}><Plus size={16}/></button>
+                </div>
+              ))}
+            </div>
+          )}
+          {searchTerm.trim()&&searchResults.length===0&&(
+            <div style={{fontSize:12,color:"var(--ink-2)",textAlign:"center",padding:"12px",background:"var(--surface-2)",borderRadius:8}}>No supplements found or already added</div>
+          )}
+        </div>
       </div>
     </div>
   </>);
