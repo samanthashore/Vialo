@@ -856,7 +856,7 @@ export default function App(){
       if(prev.some(p=>p.name.toLowerCase()===prod.name.toLowerCase()))return prev;
       const r=prod.recon;
       const recon=r?(r.mode==="mix"?{mode:"mix",vialMg:r.vialMg||0,waterMl:r.waterMl||0,doseVal:r.doseVal||0,doseUnit:r.doseUnit||"mcg"}:r.mode==="premixed"?{mode:"premixed",conc:r.conc||0,doseVal:r.doseVal||0,doseUnit:r.doseUnit||"mcg"}:{mode:"units",units:r.units||0}):undefined;
-      return[...prev,{id:"p_"+Date.now().toString(36),name:prod.name,dose:"",color:prod.color,time:prod.time,startDate:today,rotate:prod.rotate!==false,recon,schedule:prod.schedule}];
+      return[...prev,{id:"p_"+Date.now().toString(36),name:prod.name,dose:"",color:prod.color,time:prod.time,startDate:today,rotate:prod.rotate!==false,recon,schedule:prod.schedule,type:"supplement"}];
     });
   };
 
@@ -1758,7 +1758,7 @@ function DailyTimingSheet({open,peptides,onClose,onSave}){
                     }}
                   >
                     <span style={{fontSize:11,fontWeight:700,color:"var(--ink-3)"}}>≡</span>
-                    <span style={{width:7,height:7,borderRadius:2,background:p.color,flexShrink:0}}/>
+                    {p.type==="supplement"?<Droplet size={13} color={p.color} strokeWidth={2.5}/>:<Syringe size={13} color={p.color} strokeWidth={2.5}/>}
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:13,fontWeight:680,color:"var(--ink)"}}>{p.name}</div>
                       {p.time&&<div style={{fontSize:10,color:"var(--ink-2)",marginTop:1}}>{p.time}</div>}
@@ -1981,7 +1981,7 @@ function EditSheet({open,peptide,onClose,onSave,onDelete,onHistory}){
     let supply=undefined;
     if(supplyOn){supply={vials:parseInt(supplyVials)||0,vialMl:liquid?(parseFloat(supplyVialMl)||0):undefined};}
     const recon=reconValid?reconObj:undefined;
-    onSave({id:peptide?.id||("p_"+Date.now().toString(36)),name:name.trim(),dose:(computedDose||dose.trim()),color,time,startDate,rotate,form,cycle:cycleOn?{on:onW,off:offW}:undefined,supply,recon,schedule:type==="daily"?{type:"daily"}:type==="everyN"?{type:"everyN",n}:{type:"weekly",days:days.slice().sort((a,b)=>a-b)}});
+    onSave({id:peptide?.id||("p_"+Date.now().toString(36)),name:name.trim(),dose:(computedDose||dose.trim()),color,time,startDate,rotate,form,cycle:cycleOn?{on:onW,off:offW}:undefined,supply,recon,schedule:type==="daily"?{type:"daily"}:type==="everyN"?{type:"everyN",n}:{type:"weekly",days:days.slice().sort((a,b)=>a-b)},type:peptide?.type||"peptide"});
   };
   const onScanFile=async(e)=>{
     const file=e.target.files&&e.target.files[0]; if(!file)return;
