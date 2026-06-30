@@ -702,6 +702,7 @@ export default function App(){
   const[share,setShare]=useState(false);
   const[showProtocols,setShowProtocols]=useState(false);
   const[showClinic,setShowClinic]=useState(false);
+  const[showTiming,setShowTiming]=useState(false);
   const[showProvider,setShowProvider]=useState(false);
   const[clinicId,setClinicId]=useState(null);
   const[journeyPeptide,setJourneyPeptide]=useState(null);
@@ -892,7 +893,7 @@ export default function App(){
       <style>{CSS}</style>
       <div className="pos-scroll">
         {tab==="today"&&<Today now={now} due={dueToday} done={doneToday} taken={taken} pending={pendingToday} onLog={logDose} onRemove={removeFromToday} logAll={logAll} logs={logs} peptides={peptides} metrics={metrics} clinic={clinic} addEnergy={addEnergy} onPickSite={p=>setPickSite(p)} onClinic={()=>setShowClinic(true)} onAdd={()=>setEditing("new")} onShare={()=>setShare(true)} user={user} onAccount={()=>setShowAccount(true)} undoMsg={undoMsg} onUndo={undoDose} onDoseDetail={(d)=>setDoseDetail(d)}/>}
-        {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onDetail={p=>setPeptideDetail(p)} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack}/>}
+        {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onDetail={p=>setPeptideDetail(p)} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onTiming={()=>setShowTiming(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack}/>}
         {tab==="insights"&&<Insights peptides={peptides} logs={logs} metrics={metrics} now={now} addWeight={addWeight} setUnit={setUnit} addRecovery={addRecovery} addLab={addLab} deleteLab={deleteLab} onShare={()=>setShare(true)}/>}
         {tab==="profile"&&user&&<ProfileTab user={user} clinic={clinic} metrics={metrics} now={now} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime} onClinic={()=>setShowClinic(true)}/>}
       </div>
@@ -906,6 +907,7 @@ export default function App(){
       <ShareCard open={share} peptides={peptides} logs={logs} now={now} onClose={()=>setShare(false)}/>
       <ProtocolLibrary open={showProtocols} clinic={clinic} onClose={()=>setShowProtocols(false)} onApply={applyProtocol} peptides={peptides}/>
       <ClinicSheet open={showClinic} clinic={clinic} peptides={peptides} onConnect={(id)=>setClinicId(id)} onDisconnect={()=>setClinicId(null)} onAddProduct={addCatalogProduct} onOpenProvider={()=>{setShowClinic(false);setShowProvider(true);}} onClose={()=>setShowClinic(false)}/>
+      <DailyTimingSheet open={showTiming} peptides={peptides} onSave={(updated)=>{setPeptides(updated);setShowTiming(false);}} onClose={()=>setShowTiming(false)}/>
       <ProviderDashboard open={showProvider} clinic={clinic} peptides={peptides} logs={logs} now={now} onClose={()=>setShowProvider(false)}/>
       <JourneySheet open={!!journeyPeptide} peptide={journeyPeptide} now={now} onClose={()=>setJourneyPeptide(null)}/>
       <SitePicker open={!!pickSite} peptide={pickSite} metrics={metrics} now={now} onPick={(sid)=>{setDoseSite(pickSite.id,sid);setPickSite(null);}} onClose={()=>setPickSite(null)}/>
@@ -1265,11 +1267,11 @@ function renderTimeline(items,nowMin,now,nextId,onLog,onPickSite,onRemove,onDeta
 function NextRestInfo({peptides,now,logs}){let best=null;peptides.forEach(p=>{const dt=nextDoseAt(p,now,logs);if(dt&&(!best||dt<best.dt))best={p,dt};});if(!best)return <div className="pos-empty-s">Nothing scheduled. Enjoy the rest day.</div>;return <div className="pos-empty-s">Nothing due today. Next up: <b style={{color:best.p.color}}>{best.p.name}</b> in {fmtGap(best.dt-now)}.</div>;}
 
 /* ---------- STACKS ---------- */
-function Stacks({peptides,logs,metrics,now,clinic,onDetail,onEdit,onAdd,onBrowse,onClinic,onJourney,onHistory,ai,loading,error,stale,onRun}){
+function Stacks({peptides,logs,metrics,now,clinic,onDetail,onEdit,onAdd,onBrowse,onClinic,onTiming,onJourney,onHistory,ai,loading,error,stale,onRun}){
   const[mode,setMode]=useState("stacks");
   const taken=(id,d)=>!!logs[`${id}__${dateKey(d)}`];
   return(<>
-    <div className="pos-head"><div><div className="pos-h-eyebrow">{peptides.length} active</div><div className="pos-title">Stacks</div></div><div className="pos-head-actions"><button className="pos-iconbtn" onClick={onClinic} aria-label="Clinic"><Stethoscope size={18}/></button><button className="pos-iconbtn" onClick={onBrowse} aria-label="Browse protocols"><BookOpen size={18}/></button><button className="pos-iconbtn" onClick={onAdd} aria-label="Add"><Plus size={21}/></button></div></div>
+    <div className="pos-head"><div><div className="pos-h-eyebrow">{peptides.length} active</div><div className="pos-title">Stacks</div></div><div className="pos-head-actions"><button className="pos-iconbtn" onClick={onTiming} aria-label="Daily timing"><Clock size={18}/></button><button className="pos-iconbtn" onClick={onClinic} aria-label="Clinic"><Stethoscope size={18}/></button><button className="pos-iconbtn" onClick={onBrowse} aria-label="Browse protocols"><BookOpen size={18}/></button><button className="pos-iconbtn" onClick={onAdd} aria-label="Add"><Plus size={21}/></button></div></div>
     <div className="pos-mini-tabs" style={{padding:"0 18px",marginBottom:12}}><button className={mode==="stacks"?"active":""} onClick={()=>setMode("stacks")}>Your Stacks</button><button className={mode==="pairs"?"active":""} onClick={()=>setMode("pairs")}>Pairings</button></div>
     {mode==="stacks"&&<>
     {clinic&&<ClinicBanner clinic={clinic} onManage={onClinic}/>}
@@ -1663,6 +1665,110 @@ function ClinicSheet({open,clinic,peptides,onConnect,onDisconnect,onAddProduct,o
           <div className="pos-note"><ShieldCheck size={13} style={{flexShrink:0,marginTop:1,color:"var(--accent)"}}/>Tap the <span style={{fontWeight:700}}>＋</span> to add items to your stack. Pre-mixed vials — just enter units as prescribed.</div>
           <button className="pos-del" onClick={onDisconnect}>Disconnect clinic</button>
         </>}
+      </div>
+    </div>
+  </>);
+}
+
+/* ---------- daily timing planner ---------- */
+function timeToSlot(time){
+  if(!time)return"anytime";
+  const[h]=time.split(":").map(Number);
+  if(h>=5&&h<12)return"morning";
+  if(h>=12&&h<17)return"midday";
+  if(h>=17&&h<21)return"evening";
+  return"bedtime";
+}
+const TIMING_SLOTS={
+  morning:{label:"Morning",range:"5:00 AM - 12:00 PM",icon:"🌅"},
+  midday:{label:"Midday",range:"12:00 PM - 5:00 PM",icon:"☀️"},
+  evening:{label:"Evening",range:"5:00 PM - 9:00 PM",icon:"🌆"},
+  bedtime:{label:"Bedtime",range:"9:00 PM - 5:00 AM",icon:"🌙"},
+  anytime:{label:"Anytime",range:"No specific time",icon:"⏱️"}
+};
+
+function DailyTimingSheet({open,peptides,onClose,onSave}){
+  const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
+  const[dragging,setDragging]=useState(null);
+  const[dragover,setDragover]=useState(null);
+  const[slots,setSlots]=useState({});
+
+  useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
+  useEffect(()=>{if(open){const s={morning:[],midday:[],evening:[],bedtime:[],anytime:[]};peptides.forEach(p=>{const slot=p.timeSlot||timeToSlot(p.time);s[slot]=[...s[slot],p];});setSlots(s);}},[ open,peptides]);
+
+  if(!render)return null;
+
+  const handleDragStart=(e,peptide)=>{setDragging(peptide);};
+  const handleDragOver=(e,slot)=>{e.preventDefault();setDragover(slot);};
+  const handleDrop=(e,slot)=>{e.preventDefault();if(dragging){const updated={...dragging,timeSlot:slot};const newPeptides=peptides.map(p=>p.id===dragging.id?updated:p);onSave(newPeptides);setSlots(prev=>({...prev,[prev[Object.keys(prev).find(k=>prev[k].some(x=>x.id===dragging.id))]?.find(x=>x.id===dragging.id)?Object.keys(prev).find(k=>prev[k].some(x=>x.id===dragging.id)):null]:prev[Object.keys(prev).find(k=>prev[k].some(x=>x.id===dragging.id))]?.filter(x=>x.id!==dragging.id),[slot]:[...prev[slot],updated]}));setDragging(null);setDragover(null);}};
+  const handleDragEnd=()=>{setDragging(null);setDragover(null);};
+
+  return(<>
+    <div className={`pos-ov ${anim?"open":""}`} onClick={onClose}/>
+    <div className={`pos-sheet ${anim?"open":""}`}>
+      <div className="pos-grab"/>
+      <div className="pos-snav"><button onClick={onClose}>Close</button><span className="pos-snav-t">Daily Timing</span><span style={{width:54}}/></div>
+      <div className="pos-sbody">
+        <div className="pos-note" style={{marginBottom:14,background:"var(--accent-soft)",borderRadius:10,padding:"10px 12px",border:"1px solid var(--line)"}}><span>General timing guidance — arrange what works for you and confirm with your provider.</span></div>
+
+        {Object.entries(TIMING_SLOTS).map(([slotKey,slotInfo])=>(
+          <div key={slotKey} style={{marginBottom:16}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <span style={{fontSize:18}}>{slotInfo.icon}</span>
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:"var(--ink)"}}>{slotInfo.label}</div>
+                <div style={{fontSize:11,color:"var(--ink-2)",marginTop:1}}>{slotInfo.range}</div>
+              </div>
+            </div>
+            <div
+              onDragOver={(e)=>handleDragOver(e,slotKey)}
+              onDrop={(e)=>handleDrop(e,slotKey)}
+              onDragLeave={()=>setDragover(null)}
+              style={{
+                minHeight:60,
+                borderRadius:11,
+                border:`2px dashed ${dragover===slotKey?"var(--accent)":"var(--line)"}`,
+                background:dragover===slotKey?"var(--accent-soft)":"var(--surface-2)",
+                padding:10,
+                transition:"all .2s",
+                display:"flex",
+                flexDirection:"column",
+                gap:8
+              }}
+            >
+              {slots[slotKey]?.length===0?(
+                <div style={{fontSize:12,color:"var(--ink-3)",textAlign:"center",padding:"12px"}}>Drop items here</div>
+              ):(
+                slots[slotKey]?.map(p=>(
+                  <div
+                    key={p.id}
+                    draggable
+                    onDragStart={(e)=>handleDragStart(e,p)}
+                    onDragEnd={handleDragEnd}
+                    style={{
+                      background:"#fff",
+                      border:`1px solid var(--line)`,
+                      borderRadius:8,
+                      padding:"10px 12px",
+                      cursor:"grab",
+                      display:"flex",
+                      alignItems:"center",
+                      gap:10,
+                      opacity:dragging?.id===p.id?0.5:1
+                    }}
+                  >
+                    <span style={{fontSize:11,fontWeight:700,color:"var(--ink-3)"}}>≡</span>
+                    <span style={{width:7,height:7,borderRadius:2,background:p.color,flexShrink:0}}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:680,color:"var(--ink)"}}>{p.name}</div>
+                      {p.time&&<div style={{fontSize:10,color:"var(--ink-2)",marginTop:1}}>{p.time}</div>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   </>);
