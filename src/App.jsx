@@ -724,6 +724,7 @@ export default function App(){
   const[showProtocols,setShowProtocols]=useState(false);
   const[showClinic,setShowClinic]=useState(false);
   const[showTiming,setShowTiming]=useState(false);
+  const[showAddSupplement,setShowAddSupplement]=useState(false);
   const[showProvider,setShowProvider]=useState(false);
   const[clinicId,setClinicId]=useState(null);
   const[journeyPeptide,setJourneyPeptide]=useState(null);
@@ -914,7 +915,7 @@ export default function App(){
       <style>{CSS}</style>
       <div className="pos-scroll">
         {tab==="today"&&<Today now={now} due={dueToday} done={doneToday} taken={taken} pending={pendingToday} onLog={logDose} onRemove={removeFromToday} logAll={logAll} logs={logs} peptides={peptides} metrics={metrics} clinic={clinic} addEnergy={addEnergy} onPickSite={p=>setPickSite(p)} onClinic={()=>setShowClinic(true)} onAdd={()=>setEditing("new")} onShare={()=>setShare(true)} user={user} onAccount={()=>setShowAccount(true)} undoMsg={undoMsg} onUndo={undoDose} onDoseDetail={(d)=>setDoseDetail(d)}/>}
-        {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onDetail={p=>setPeptideDetail(p)} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onTiming={()=>setShowTiming(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack}/>}
+        {tab==="stacks"&&<Stacks peptides={peptides} logs={logs} metrics={metrics} now={now} clinic={clinic} onDetail={p=>setPeptideDetail(p)} onEdit={p=>setEditing(p)} onAdd={()=>setEditing("new")} onAddSupplement={()=>setShowAddSupplement(true)} onBrowse={()=>setShowProtocols(true)} onClinic={()=>setShowClinic(true)} onTiming={()=>setShowTiming(true)} onJourney={p=>setJourneyPeptide(p)} onHistory={p=>setHistoryPeptide(p)} ai={ai} loading={aiLoading} error={aiError} stale={ai&&ai.sig!==stackSig} onRun={analyzeStack}/>}
         {tab==="insights"&&<Insights peptides={peptides} logs={logs} metrics={metrics} now={now} addWeight={addWeight} setUnit={setUnit} addRecovery={addRecovery} addLab={addLab} deleteLab={deleteLab} onShare={()=>setShare(true)}/>}
         {tab==="profile"&&user&&<ProfileTab user={user} clinic={clinic} metrics={metrics} now={now} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime} onClinic={()=>setShowClinic(true)}/>}
       </div>
@@ -922,13 +923,14 @@ export default function App(){
         <Tab icon={Zap} label="Today" active={tab==="today"} onClick={()=>setTab("today")}/>
         <Tab icon={Layers} label="Stacks" active={tab==="stacks"} onClick={()=>setTab("stacks")}/>
         <Tab icon={Activity} label="Insights" active={tab==="insights"} onClick={()=>setTab("insights")}/>
-        <Tab icon={User} label="Profile" active={tab==="profile"} onClick={()=>{setShowAccount(true);setTab("profile")}}/>
+        <Tab icon={User} label="Profile" active={tab==="profile"} onClick={()=>setTab("profile")}/>
       </nav>
       {celebrate&&<Confetti/>}
       <ShareCard open={share} peptides={peptides} logs={logs} now={now} onClose={()=>setShare(false)}/>
       <ProtocolLibrary open={showProtocols} clinic={clinic} onClose={()=>setShowProtocols(false)} onApply={applyProtocol} peptides={peptides}/>
       <ClinicSheet open={showClinic} clinic={clinic} peptides={peptides} onConnect={(id)=>setClinicId(id)} onDisconnect={()=>setClinicId(null)} onAddProduct={addCatalogProduct} onOpenProvider={()=>{setShowClinic(false);setShowProvider(true);}} onClose={()=>setShowClinic(false)}/>
       <DailyTimingSheet open={showTiming} peptides={peptides} onSave={(updated)=>{setPeptides(updated);setShowTiming(false);}} onClose={()=>setShowTiming(false)}/>
+      <AddSupplementSheet open={showAddSupplement} peptides={peptides} onClose={()=>setShowAddSupplement(false)} onAdd={(supp)=>{setPeptides(prev=>[...prev,supp]);setShowAddSupplement(false);}}/>
       <ProviderDashboard open={showProvider} clinic={clinic} peptides={peptides} logs={logs} now={now} onClose={()=>setShowProvider(false)}/>
       <JourneySheet open={!!journeyPeptide} peptide={journeyPeptide} now={now} onClose={()=>setJourneyPeptide(null)}/>
       <SitePicker open={!!pickSite} peptide={pickSite} metrics={metrics} now={now} onPick={(sid)=>{setDoseSite(pickSite.id,sid);setPickSite(null);}} onClose={()=>setPickSite(null)}/>
@@ -1288,11 +1290,11 @@ function renderTimeline(items,nowMin,now,nextId,onLog,onPickSite,onRemove,onDeta
 function NextRestInfo({peptides,now,logs}){let best=null;peptides.forEach(p=>{const dt=nextDoseAt(p,now,logs);if(dt&&(!best||dt<best.dt))best={p,dt};});if(!best)return <div className="pos-empty-s">Nothing scheduled. Enjoy the rest day.</div>;return <div className="pos-empty-s">Nothing due today. Next up: <b style={{color:best.p.color}}>{best.p.name}</b> in {fmtGap(best.dt-now)}.</div>;}
 
 /* ---------- STACKS ---------- */
-function Stacks({peptides,logs,metrics,now,clinic,onDetail,onEdit,onAdd,onBrowse,onClinic,onTiming,onJourney,onHistory,ai,loading,error,stale,onRun}){
+function Stacks({peptides,logs,metrics,now,clinic,onDetail,onEdit,onAdd,onAddSupplement,onBrowse,onClinic,onTiming,onJourney,onHistory,ai,loading,error,stale,onRun}){
   const[mode,setMode]=useState("stacks");
   const taken=(id,d)=>!!logs[`${id}__${dateKey(d)}`];
   return(<>
-    <div className="pos-head"><div><div className="pos-h-eyebrow">{peptides.length} active</div><div className="pos-title">Stacks</div></div><div className="pos-head-actions"><button className="pos-iconbtn" onClick={onTiming} aria-label="Daily timing"><Clock size={18}/></button><button className="pos-iconbtn" onClick={onClinic} aria-label="Clinic"><Stethoscope size={18}/></button><button className="pos-iconbtn" onClick={onBrowse} aria-label="Browse protocols"><BookOpen size={18}/></button><button className="pos-iconbtn" onClick={onAdd} aria-label="Add"><Plus size={21}/></button></div></div>
+    <div className="pos-head"><div><div className="pos-h-eyebrow">{peptides.length} active</div><div className="pos-title">Stacks</div></div><div className="pos-head-actions"><button className="pos-iconbtn" onClick={onTiming} aria-label="Daily timing"><Clock size={18}/></button><button className="pos-iconbtn" onClick={onClinic} aria-label="Clinic"><Stethoscope size={18}/></button><button className="pos-iconbtn" onClick={onBrowse} aria-label="Browse protocols"><BookOpen size={18}/></button><button className="pos-iconbtn" onClick={onAddSupplement} aria-label="Add supplement" title="Add supplement"><Droplet size={18}/></button><button className="pos-iconbtn" onClick={onAdd} aria-label="Add peptide"><Plus size={21}/></button></div></div>
     <div className="pos-mini-tabs" style={{padding:"0 18px",marginBottom:12}}><button className={mode==="stacks"?"active":""} onClick={()=>setMode("stacks")}>Your Stacks</button><button className={mode==="pairs"?"active":""} onClick={()=>setMode("pairs")}>Pairings</button></div>
     {mode==="stacks"&&<>
     {clinic&&<ClinicBanner clinic={clinic} onManage={onClinic}/>}
@@ -1817,6 +1819,93 @@ function DailyTimingSheet({open,peptides,onClose,onSave}){
             <div style={{fontSize:12,color:"var(--ink-2)",textAlign:"center",padding:"12px",background:"var(--surface-2)",borderRadius:8}}>No supplements found or already added</div>
           )}
         </div>
+      </div>
+    </div>
+  </>);
+}
+
+/* ---------- add supplement sheet ---------- */
+function AddSupplementSheet({open,peptides,onClose,onAdd}){
+  const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
+  const[mode,setMode]=useState("pick");
+  const[selected,setSelected]=useState(null);
+  const[customName,setCustomName]=useState("");
+  const[customTime,setCustomTime]=useState("09:00");
+  const[notes,setNotes]=useState("");
+
+  useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
+
+  if(!render)return null;
+
+  const have=new Set(peptides.filter(p=>p.type==="supplement").map(p=>p.name.toLowerCase()));
+  const available=SUPPLEMENTS.filter(s=>!have.has(s.name.toLowerCase()));
+
+  const handleAdd=()=>{
+    let supp;
+    if(mode==="pick"&&selected){
+      supp=selected;
+    }else if(mode==="custom"&&customName.trim()){
+      supp={name:customName.trim(),color:"#8a8a8a",time:customTime,category:"Custom"};
+    }else return;
+
+    const today=dateKey(new Date());
+    const newSupp={id:"s_"+Date.now().toString(36),name:supp.name,dose:"",color:supp.color,time:supp.time,startDate:today,rotate:true,schedule:{type:"daily"},type:"supplement",notes:notes.trim()||undefined};
+    onAdd(newSupp);
+    setSelected(null);
+    setCustomName("");
+    setCustomTime("09:00");
+    setNotes("");
+    setMode("pick");
+  };
+
+  return(<>
+    <div className={`pos-ov ${anim?"open":""}`} onClick={onClose}/>
+    <div className={`pos-sheet ${anim?"open":""}`}>
+      <div className="pos-grab"/>
+      <div className="pos-snav"><button onClick={onClose}>Close</button><span className="pos-snav-t">Add supplement</span><span style={{width:54}}/></div>
+      <div className="pos-sbody">
+        <div style={{display:"flex",gap:6,marginBottom:14}}>
+          <button onClick={()=>{setMode("pick");setSelected(null);}} style={{flex:1,padding:"10px",background:mode==="pick"?"var(--accent)":"var(--surface)",color:mode==="pick"?"#fff":"var(--ink)",border:"1px solid var(--line)",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}} disabled={available.length===0}>{available.length>0?`Pick from list (${available.length})`:mode==="pick"?"All added":"Pick from list"}</button>
+          <button onClick={()=>setMode("custom")} style={{flex:1,padding:"10px",background:mode==="custom"?"var(--accent)":"var(--surface)",color:mode==="custom"?"#fff":"var(--ink)",border:"1px solid var(--line)",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Add custom</button>
+        </div>
+
+        {mode==="pick"?(<>
+          {available.length===0?(
+            <div style={{textAlign:"center",padding:"20px",background:"var(--surface-2)",borderRadius:10}}><div style={{color:"var(--ink-2)",fontSize:13}}>You've added all available supplements. Use "Add custom" to add others.</div></div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+              {available.map(supp=>(
+                <button key={supp.name} onClick={()=>setSelected(supp)} style={{padding:"12px 14px",border:selected?.name===supp.name?"2px solid var(--accent)":"1px solid var(--line)",background:selected?.name===supp.name?"var(--accent-soft)":"#fff",borderRadius:10,cursor:"pointer",textAlign:"left",fontFamily:"var(--sans)"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <Droplet size={14} color={supp.color} strokeWidth={2.5}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:14,fontWeight:700,color:"var(--ink)"}}>{supp.name}</div>
+                      <div style={{fontSize:11,color:"var(--ink-2)",marginTop:2}}>{supp.category}</div>
+                    </div>
+                    <div style={{fontSize:11,color:"var(--ink-2)"}}>{supp.time}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>):(<>
+          <div style={{marginBottom:12}}>
+            <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Supplement name</label>
+            <input type="text" placeholder="e.g., Magnesium Glycinate" value={customName} onChange={e=>setCustomName(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/>
+          </div>
+          <div style={{marginBottom:12}}>
+            <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Typical time</label>
+            <input type="time" value={customTime} onChange={e=>setCustomTime(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/>
+          </div>
+        </>)}
+
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Notes (optional)</label>
+          <textarea placeholder="e.g., Take with food, or take together with NAD+" value={notes} onChange={e=>setNotes(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:13,fontFamily:"var(--sans)",outline:"none",minHeight:60,resize:"none"}}/>
+          <div style={{fontSize:10,color:"var(--ink-3)",marginTop:4}}>Your own log of how you use this supplement — not a recommendation</div>
+        </div>
+
+        <button onClick={handleAdd} disabled={!selected&&!customName.trim()} style={{width:"100%",padding:"12px",background:"var(--accent)",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:selected||customName.trim()?"pointer":"default",opacity:selected||customName.trim()?1:0.5,fontFamily:"var(--sans)",marginTop:8}}>Add to stack</button>
       </div>
     </div>
   </>);
