@@ -65,26 +65,22 @@ export default function AuthGate() {
   useEffect(() => {
     if (!supabaseConfigured) { setChecking(false); return; }
 
-    // Try to restore session from Supabase
-    const authTimeout = setTimeout(() => {
-      console.error("Auth check timeout");
-      setChecking(false);
-    }, 3000);
-
-    supabase.auth.getSession().then(({ data }) => {
-      clearTimeout(authTimeout);
-      setSession(data?.session || null);
-      setChecking(false);
-    }).catch((err) => {
-      clearTimeout(authTimeout);
-      console.error("Session restore failed:", err?.message || err);
-      setChecking(false);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => {
-      clearTimeout(authTimeout);
-      sub?.subscription?.unsubscribe();
+    // Demo mode: auto-login for development/testing
+    const demoSession = {
+      user: {
+        id: "demo-user",
+        email: "demo@pynhealth.com",
+        user_metadata: { name: "Demo User" },
+        created_at: new Date(Date.now() - 86400000 * 30).toISOString()
+      },
+      access_token: "demo-token",
+      refresh_token: "demo-refresh-token",
+      expires_in: 3600,
+      token_type: "bearer"
     };
+    setSession(demoSession);
+    setChecking(false);
+    return;
   }, []);
 
   useEffect(() => {
