@@ -752,6 +752,7 @@ export default function App(){
       try{const p=await window.storage.get("peptides");if(p?.value){const a=JSON.parse(p.value);setPeptides(a);}}catch(e){}
       try{const l=await window.storage.get("logs");if(l?.value)setLogs(JSON.parse(l.value));}catch(e){}
       try{const m=await window.storage.get("metrics");if(m?.value)setMetrics(x=>({...x,...JSON.parse(m.value)}));}catch(e){}
+      try{const v=await window.storage.get("vials");if(v?.value)setVials(JSON.parse(v.value));}catch(e){}
       try{const a=await window.storage.get("ai_pairings");if(a?.value)setAi(JSON.parse(a.value));}catch(e){}
       try{const c=await window.storage.get("clinic_id");if(c?.value)setClinicId(JSON.parse(c.value));}catch(e){}
     }finally{
@@ -760,6 +761,7 @@ export default function App(){
   })();},[]);
   useEffect(()=>{if(loaded)window.storage.set("peptides",JSON.stringify(peptides),false).catch(()=>{});},[peptides,loaded]);
   useEffect(()=>{if(loaded)window.storage.set("logs",JSON.stringify(logs),false).catch(()=>{});},[logs,loaded]);
+  useEffect(()=>{if(loaded)window.storage.set("vials",JSON.stringify(vials),false).catch(()=>{});},[vials,loaded]);
   useEffect(()=>{if(loaded)window.storage.set("metrics",JSON.stringify(metrics),false).catch(()=>{});},[metrics,loaded]);
   useEffect(()=>{if(loaded)window.storage.set("clinic_id",JSON.stringify(clinicId),false).catch(()=>{});},[clinicId,loaded]);
   const clinic=useMemo(()=>CLINICS.find(c=>c.id===clinicId)||null,[clinicId]);
@@ -769,14 +771,16 @@ export default function App(){
   const logDose=(id)=>{
     const p=peptides.find(x=>x.id===id);
     const wasLogged=!!logs[lk(id,now)];
-    setLogs(prev=>{const c={...prev},k=lk(id,now);if(c[k])delete c[k];else c[k]=new Date().toISOString();return c;});
+    const activeVial=getActiveVial(id);
+    setLogs(prev=>{const c={...prev},k=lk(id,now);if(c[k])delete c[k];else c[k]={date:new Date().toISOString(),vial_id:activeVial?.id};return c;});
     if(p&&p.rotate!==false){
       setMetrics(m=>{const k=`${id}__${dateKey(now)}`,ds={...(m.doseSites||{})};if(wasLogged)delete ds[k];else if(!ds[k])ds[k]=suggestSite(peptideSiteMap(m,id),now).id;return{...m,doseSites:ds};});
     }
   };
   const setDoseSite=(pid,sid)=>{
     setMetrics(m=>({...m,doseSites:{...(m.doseSites||{}),[`${pid}__${dateKey(now)}`]:sid}}));
-    setLogs(prev=>{const k=lk(pid,now);if(prev[k])return prev;return{...prev,[k]:new Date().toISOString()};});
+    const activeVial=getActiveVial(pid);
+    setLogs(prev=>{const k=lk(pid,now);if(prev[k])return prev;return{...prev,[k]:{date:new Date().toISOString(),vial_id:activeVial?.id}};});
     const p=peptides.find(x=>x.id===pid);
     setUndoPid(pid);
     setUndoMsg(`${p?.name} logged · tap to undo`);
@@ -784,7 +788,8 @@ export default function App(){
   };
   const toggleLogOn=(pid,dk)=>{
     const key=`${pid}__${dk}`, p=peptides.find(x=>x.id===pid), was=!!logs[key];
-    setLogs(prev=>{const c={...prev};if(c[key])delete c[key];else c[key]=new Date(dk+"T12:00:00").toISOString();return c;});
+    const activeVial=getActiveVial(pid);
+    setLogs(prev=>{const c={...prev};if(c[key])delete c[key];else c[key]={date:new Date(dk+"T12:00:00").toISOString(),vial_id:activeVial?.id};return c;});
     if(p&&p.rotate!==false)setMetrics(m=>{const ds={...(m.doseSites||{})};if(was)delete ds[key];else if(!ds[key])ds[key]=suggestSite(peptideSiteMap(m,pid),parseKey(dk)).id;return{...m,doseSites:ds};});
   };
   const removeFromToday=(pid)=>{
@@ -897,6 +902,12 @@ export default function App(){
   const getVialForLog=(peptideId,logDate)=>{
     const peptideVials=(vials[peptideId]||[]).sort((a,b)=>new Date(b.start_date)-new Date(a.start_date));
     return peptideVials.find(v=>logDate>=v.start_date&&(!v.end_date||logDate<=v.end_date))||peptideVials[0];
+  };
+
+  const getLogDate=(logValue)=>{
+    if(typeof logValue==="string")return new Date(logValue);
+    if(typeof logValue==="object"&&logValue?.date)return new Date(logValue.date);
+    return null;
   };
   const applyProtocol=(tpl)=>{
     const today=dateKey(new Date());
@@ -1696,6 +1707,12 @@ function ClinicSheet({open,clinic,peptides,onConnect,onDisconnect,onAddProduct,o
   useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
   if(!render)return null;
   const have=new Set(peptides.map(p=>p.name.toLowerCase()));
+
+  const getItemTime=(item)=>{
+    if(item.type==="supplement")return item.time;
+    const activeVial=getActiveVial(item.id);
+    return activeVial?.start_date?item.time:item.time;
+  };
 
   const groupCatalog=(items)=>{
     const groups={};
