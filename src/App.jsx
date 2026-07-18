@@ -736,6 +736,8 @@ export default function App(){
   const[undoPid,setUndoPid]=useState(null);
   const[doseDetail,setDoseDetail]=useState(null);
   const[peptideDetail,setPeptideDetail]=useState(null);
+  const[vials,setVials]=useState({});
+  const[showStartVial,setShowStartVial]=useState(null);
   const[onboardingStep,setOnboardingStep]=useState(1);
   const[onboardingPeptide,setOnboardingPeptide]=useState({name:"",dose:"",color:"#4f7d5f",time:"09:00",form:"powder",schedule:{type:"daily"}});
   const wasComplete=useRef(false);
@@ -863,6 +865,39 @@ export default function App(){
   const savePeptide=(p)=>{setPeptides(prev=>prev.some(x=>x.id===p.id)?prev.map(x=>x.id===p.id?p:x):[...prev,p]);setEditing(null);};
   const savePrepData=(peptideId,prepData)=>{setPeptides(prev=>prev.map(p=>p.id===peptideId?{...p,prep:prepData}:p));setPeptideDetail(null);};
   const deletePeptide=(id)=>{setPeptides(prev=>prev.filter(x=>x.id!==id));setLogs(prev=>{const c={...prev};Object.keys(c).forEach(k=>{if(k.startsWith(id+"__"))delete c[k];});return c;});setEditing(null);};
+
+  const getActiveVial=(peptideId)=>{
+    const peptideVials=(vials[peptideId]||[]).filter(v=>v.status==="active");
+    return peptideVials[0]||null;
+  };
+
+  const createNewVial=(peptideId,specs)=>{
+    const today=dateKey(new Date());
+    const newVial={id:"v_"+Date.now().toString(36),peptide_id:peptideId,status:"active",start_date:specs.startDate||today,...specs};
+
+    setVials(prev=>{
+      const peptideVials=prev[peptideId]||[];
+      const activeVial=peptideVials.find(v=>v.status==="active");
+
+      if(activeVial){activeVial.status="archived";activeVial.end_date=today;}
+
+      return{...prev,[peptideId]:[...peptideVials,newVial]};
+    });
+  };
+
+  const archiveCurrentVial=(peptideId,endDate)=>{
+    setVials(prev=>{
+      const peptideVials=prev[peptideId]||[];
+      const activeVial=peptideVials.find(v=>v.status==="active");
+      if(activeVial){activeVial.status="archived";activeVial.end_date=endDate||dateKey(new Date());}
+      return{...prev,[peptideId]:peptideVials};
+    });
+  };
+
+  const getVialForLog=(peptideId,logDate)=>{
+    const peptideVials=(vials[peptideId]||[]).sort((a,b)=>new Date(b.start_date)-new Date(a.start_date));
+    return peptideVials.find(v=>logDate>=v.start_date&&(!v.end_date||logDate<=v.end_date))||peptideVials[0];
+  };
   const applyProtocol=(tpl)=>{
     const today=dateKey(new Date());
     setPeptides(prev=>{
@@ -931,13 +966,14 @@ export default function App(){
       <ClinicSheet open={showClinic} clinic={clinic} peptides={peptides} onConnect={(id)=>setClinicId(id)} onDisconnect={()=>setClinicId(null)} onAddProduct={addCatalogProduct} onOpenProvider={()=>{setShowClinic(false);setShowProvider(true);}} onClose={()=>setShowClinic(false)}/>
       <DailyTimingSheet open={showTiming} peptides={peptides} onSave={(updated)=>{setPeptides(updated);setShowTiming(false);}} onClose={()=>setShowTiming(false)}/>
       <AddSupplementSheet open={showAddSupplement} peptides={peptides} onClose={()=>setShowAddSupplement(false)} onAdd={(supp)=>{setPeptides(prev=>[...prev,supp]);setShowAddSupplement(false);}}/>
+      <StartNewVialSheet open={!!showStartVial} peptide={showStartVial} activeVial={showStartVial?getActiveVial(showStartVial.id):null} onClose={()=>setShowStartVial(null)} onSave={(specs)=>{if(showStartVial){createNewVial(showStartVial.id,specs);setShowStartVial(null);}}}/>
       <ProviderDashboard open={showProvider} clinic={clinic} peptides={peptides} logs={logs} now={now} onClose={()=>setShowProvider(false)}/>
       <JourneySheet open={!!journeyPeptide} peptide={journeyPeptide} now={now} onClose={()=>setJourneyPeptide(null)}/>
       <SitePicker open={!!pickSite} peptide={pickSite} metrics={metrics} now={now} onPick={(sid)=>{setDoseSite(pickSite.id,sid);setPickSite(null);}} onClose={()=>setPickSite(null)}/>
       <EditSheet key={editing==="new"?"new":editing?.id||"closed"} open={!!editing} peptide={editing==="new"?null:editing} onClose={()=>setEditing(null)} onSave={savePeptide} onDelete={deletePeptide} onHistory={p=>setHistoryPeptide(p)}/>
       <HistorySheet open={!!historyPeptide} peptide={historyPeptide} logs={logs} now={now} onToggle={toggleLogOn} onClose={()=>setHistoryPeptide(null)}/>
       <DoseDetailSheet open={!!doseDetail} dose={doseDetail} metrics={metrics} now={now} onRemove={(pid)=>{removeFromToday(pid);setDoseDetail(null);}} onClose={()=>setDoseDetail(null)}/>
-      <PeptideDetailSheet open={!!peptideDetail} peptide={peptideDetail} onClose={()=>setPeptideDetail(null)} onEdit={(p)=>{setEditing(p);setPeptideDetail(null);}} onSavePrep={(prepData)=>savePrepData(peptideDetail?.id,prepData)}/>
+      <PeptideDetailSheet open={!!peptideDetail} peptide={peptideDetail} vials={vials} onClose={()=>setPeptideDetail(null)} onEdit={(p)=>{setEditing(p);setPeptideDetail(null);}} onSavePrep={(prepData)=>savePrepData(peptideDetail?.id,prepData)} onStartNewVial={setShowStartVial} onArchiveVial={(vialId)=>{if(vialId)archiveCurrentVial(peptideDetail?.id);}}/>
       <AccountSheet open={showAccount} user={user} clinic={clinic} metrics={metrics} now={now} onClose={()=>setShowAccount(false)} onClinic={()=>setShowClinic(true)} onSetUnit={setUnit} onSetNotifications={setNotifications} onSetReminderTime={setReminderTime}/>
       <OnboardingSheet open={showOnboarding} step={onboardingStep} peptide={onboardingPeptide} onStepChange={setOnboardingStep} onPeptideChange={setOnboardingPeptide} onComplete={completeOnboarding} clinic={clinic} onClinic={()=>setShowClinic(true)}/>
 
@@ -1149,7 +1185,7 @@ function OnboardingSheet({open,step,peptide,onStepChange,onPeptideChange,onCompl
   </>);
 }
 
-function PeptideDetailSheet({open,peptide,onClose,onEdit,onSavePrep}){
+function PeptideDetailSheet({open,peptide,vials,onClose,onEdit,onSavePrep,onStartNewVial,onArchiveVial}){
   const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
   const[prep,setPrep]=useState({vialMg:"",waterMl:"",conc:"",mgPerClick:""});
   useEffect(()=>{if(open&&peptide){setRender(true);requestAnimationFrame(()=>setAnim(true));setPrep({vialMg:peptide.recon?.vialMg||"",waterMl:peptide.recon?.waterMl||"",conc:peptide.recon?.conc||"",mgPerClick:peptide.prep?.mgPerClick||""});}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open,peptide]);
@@ -1201,6 +1237,38 @@ function PeptideDetailSheet({open,peptide,onClose,onEdit,onSavePrep}){
             <div style={{background:"var(--surface)",borderRadius:12,padding:"16px"}}>
               <div style={{fontSize:14,fontWeight:600}}>{peptide.dose}</div>
             </div>
+          </>}
+
+          {vials&&<>
+            <div className="pos-eyebrow" style={{marginTop:20,marginBottom:12}}>Vial management</div>
+            {(vials[peptide.id]||[]).filter(v=>v.status==="active").length>0?<>
+              <div style={{background:"var(--accent-soft)",borderRadius:10,padding:"12px",marginBottom:12,fontSize:12}}>
+                {(() => {
+                  const activeVial=(vials[peptide.id]||[]).find(v=>v.status==="active");
+                  return activeVial?<>
+                    <div style={{fontWeight:700,marginBottom:4}}>Current vial</div>
+                    <div style={{fontSize:11,color:"var(--ink-2)"}}>{activeVial.source}</div>
+                    <div style={{fontSize:11,color:"var(--ink-2)",marginTop:2}}>{activeVial.concentration_mg_ml} mg/mL • {activeVial.dose_units} units/dose</div>
+                  </>:<div style={{color:"var(--ink-2)"}}>No active vial</div>;
+                })()}
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                <button onClick={()=>onStartNewVial(peptide)} style={{flex:1,padding:"10px",background:"var(--accent)",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Start new vial</button>
+                <button onClick={()=>onArchiveVial((vials[peptide.id]||[]).find(v=>v.status==="active")?.id)} style={{flex:1,padding:"10px",background:"var(--surface-2)",color:"var(--ink)",border:"1px solid var(--line)",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Archive</button>
+              </div>
+            </>:<button onClick={()=>onStartNewVial(peptide)} style={{width:"100%",padding:"10px",background:"var(--accent)",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)",marginBottom:12}}>Create vial record</button>}
+            {(vials[peptide.id]||[]).filter(v=>v.status==="archived").length>0&&<details style={{fontSize:11,color:"var(--ink-2)",marginBottom:12}}>
+              <summary style={{cursor:"pointer",fontWeight:700,marginBottom:6}}>Vial history ({(vials[peptide.id]||[]).filter(v=>v.status==="archived").length})</summary>
+              <div style={{paddingTop:8}}>
+                {(vials[peptide.id]||[]).filter(v=>v.status==="archived").map((v,i)=>(
+                  <div key={i} style={{paddingBottom:8,borderBottom:i<(vials[peptide.id]||[]).filter(x=>x.status==="archived").length-1?"1px solid var(--line)":"none"}}>
+                    <div style={{fontWeight:600}}>{v.source}</div>
+                    <div>{v.concentration_mg_ml} mg/mL • {v.dose_units} units</div>
+                    <div style={{fontSize:10,marginTop:2}}>{v.start_date} {v.end_date?`— ${v.end_date}`:""}</div>
+                  </div>
+                ))}
+              </div>
+            </details>}
           </>}
 
           <div className="pos-note" style={{marginTop:20}}>Math only, never a recommendation. You set the dose from your provider — the app just helps you calculate the prep.</div>
@@ -1906,6 +1974,103 @@ function AddSupplementSheet({open,peptides,onClose,onAdd}){
         </div>
 
         <button onClick={handleAdd} disabled={!selected&&!customName.trim()} style={{width:"100%",padding:"12px",background:"var(--accent)",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:selected||customName.trim()?"pointer":"default",opacity:selected||customName.trim()?1:0.5,fontFamily:"var(--sans)",marginTop:8}}>Add to stack</button>
+      </div>
+    </div>
+  </>);
+}
+
+/* ---------- start new vial sheet ---------- */
+function StartNewVialSheet({open,peptide,activeVial,onClose,onSave}){
+  const[render,setRender]=useState(open),[anim,setAnim]=useState(false);
+  const[source,setSource]=useState(activeVial?.source||"");
+  const[concentration,setConcentration]=useState(activeVial?.concentration_mg_ml||"");
+  const[volume,setVolume]=useState(activeVial?.volume_ml||"");
+  const[doseUnits,setDoseUnits]=useState(activeVial?.dose_units||"");
+  const[schedType,setSchedType]=useState(activeVial?.schedule?.type||"daily");
+  const[schedDays,setSchedDays]=useState(activeVial?.schedule?.days||[]);
+  const[schedN,setSchedN]=useState(activeVial?.schedule?.n||2);
+  const[startDate,setStartDate]=useState(dateKey(new Date()));
+  const[useSameLast,setUseSameLast]=useState(false);
+
+  useEffect(()=>{if(open){setRender(true);requestAnimationFrame(()=>setAnim(true));}else{setAnim(false);const t=setTimeout(()=>setRender(false),420);return()=>clearTimeout(t);}},[open]);
+
+  if(!render)return null;
+
+  const canSave=source.trim()&&concentration&&volume&&doseUnits&&(schedType!=="weekly"||schedDays.length>0);
+
+  const handleSave=()=>{
+    if(!canSave)return;
+    onSave({
+      source:source.trim(),
+      concentration_mg_ml:parseFloat(concentration),
+      volume_ml:parseFloat(volume),
+      dose_units:parseFloat(doseUnits),
+      schedule:schedType==="daily"?{type:"daily"}:schedType==="everyN"?{type:"everyN",n:parseInt(schedN)}:{type:"weekly",days:schedDays.slice().sort()},
+      startDate
+    });
+    setSource("");setConcentration("");setVolume("");setDoseUnits("");setSchedType("daily");setSchedDays([]);setSchedN(2);setStartDate(dateKey(new Date()));
+  };
+
+  const toggleDay=i=>setSchedDays(d=>d.includes(i)?d.filter(x=>x!==i):[...d,i]);
+
+  return(<>
+    <div className={`pos-ov ${anim?"open":""}`} onClick={onClose}/>
+    <div className={`pos-sheet ${anim?"open":""}`}>
+      <div className="pos-grab"/>
+      <div className="pos-snav"><button onClick={onClose}>Close</button><span className="pos-snav-t">Start new vial</span><span style={{width:54}}/></div>
+      <div className="pos-sbody">
+        <div style={{fontSize:13,color:"var(--ink-2)",marginBottom:14,background:"var(--surface-2)",padding:"10px",borderRadius:8}}>{peptide?.name} — enter the new vial's specs as prescribed</div>
+
+        {activeVial&&<button onClick={()=>{setUseSameLast(!useSameLast);if(!useSameLast){setSource(activeVial.source);setConcentration(activeVial.concentration_mg_ml);setVolume(activeVial.volume_ml);setDoseUnits(activeVial.dose_units);}}} style={{width:"100%",padding:"10px",background:"var(--surface)",border:"1px solid var(--line)",borderRadius:8,fontSize:12,fontWeight:700,color:"var(--accent)",cursor:"pointer",marginBottom:12,fontFamily:"var(--sans)"}}>📋 Same as last vial</button>}
+
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Source / pharmacy</label>
+          <input type="text" placeholder="e.g., Compounding Pharmacy, Clinic" value={source} onChange={e=>setSource(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div>
+            <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Concentration</label>
+            <input type="number" inputMode="decimal" placeholder="mg/mL" value={concentration} onChange={e=>setConcentration(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/>
+          </div>
+          <div>
+            <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Volume</label>
+            <input type="number" inputMode="decimal" placeholder="mL" value={volume} onChange={e=>setVolume(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/>
+          </div>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Dose per injection</label>
+          <input type="number" inputMode="decimal" placeholder="units" value={doseUnits} onChange={e=>setDoseUnits(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Schedule</label>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={()=>setSchedType("daily")} style={{flex:1,padding:"8px",background:schedType==="daily"?"var(--accent)":"var(--surface)",color:schedType==="daily"?"#fff":"var(--ink)",border:"1px solid var(--line)",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Daily</button>
+            <button onClick={()=>setSchedType("weekly")} style={{flex:1,padding:"8px",background:schedType==="weekly"?"var(--accent)":"var(--surface)",color:schedType==="weekly"?"#fff":"var(--ink)",border:"1px solid var(--line)",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Weekly</button>
+            <button onClick={()=>setSchedType("everyN")} style={{flex:1,padding:"8px",background:schedType==="everyN"?"var(--accent)":"var(--surface)",color:schedType==="everyN"?"#fff":"var(--ink)",border:"1px solid var(--line)",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>Every N</button>
+          </div>
+        </div>
+
+        {schedType==="weekly"&&<div style={{marginBottom:12}}>
+          <label style={{fontSize:11,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Days</label>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+            {["S","M","T","W","T","F","S"].map((d,i)=>(<button key={i} onClick={()=>toggleDay(i)} style={{padding:"6px",background:schedDays.includes(i)?"var(--accent)":"var(--surface)",color:schedDays.includes(i)?"#fff":"var(--ink)",border:"1px solid var(--line)",borderRadius:6,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"var(--sans)"}}>{d}</button>))}
+          </div>
+        </div>}
+
+        {schedType==="everyN"&&<div style={{marginBottom:12}}>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Every N days</label>
+          <input type="number" min="2" max="30" value={schedN} onChange={e=>setSchedN(parseInt(e.target.value))} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/>
+        </div>}
+
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--ink-2)",display:"block",marginBottom:6}}>Start date (optional, can backdate)</label>
+          <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} style={{width:"100%",border:"1px solid var(--line)",borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"var(--sans)",outline:"none"}}/>
+        </div>
+
+        <button onClick={handleSave} disabled={!canSave} style={{width:"100%",padding:"12px",background:"var(--accent)",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:canSave?"pointer":"default",opacity:canSave?1:0.5,fontFamily:"var(--sans)"}}>Start new vial</button>
       </div>
     </div>
   </>);
